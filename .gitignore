@@ -1,6 +1,8 @@
 # Rust / Tauri build artifacts
 src-tauri/target/
 src-tauri/gen/
+src-tauri/icons/deskpet.iconset/
+src-tauri/icons/icon.icns
 
 # macOS
 .DS_Store

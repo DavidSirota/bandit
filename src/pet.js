@@ -123,7 +123,7 @@
   // ---- idle personality beats ------------------------------------------
   const idle = {
     m: "", until: 0, next: nowp() + 6000,
-    fire(kind) { this.m = kind; this.until = nowp() + (kind === "yawn" ? 1800 : 1500); },
+    fire(kind) { this.m = kind; this.until = nowp() + (kind === "yawn" ? 1800 : kind === "groom" ? 2200 : kind === "sniff" ? 900 : 1500); },
     tick() {
       const t = nowp();
       if (this.m && t > this.until) this.m = "";
@@ -131,7 +131,7 @@
         this.next = t + (isLate() ? 6000 : 12000) + seed() * 9000;
         const calm = ["content", "great", "nocturnal"].includes(mood());
         if (calm && !ctx.hovering) {
-          const beats = isLate() ? ["look", "scratch", "tap", "look"] : ["yawn", "look", "scratch", "tap"];
+          const beats = isLate() ? ["look", "scratch", "tap", "groom", "look", "sniff"] : ["yawn", "look", "scratch", "tap", "groom", "sniff"];
           this.fire(pick(beats));
         }
       }
@@ -140,51 +140,84 @@
 
   // ---- talking ---------------------------------------------------------
   const L = {
-    coding: ["lock in. i'm watching.", "ooh we're building", "clean commit incoming?", "ship it"],
-    browsing: ["research... or rabbit hole?", "whatcha lookin at 👀", "one more tab huh", "ooh shiny"],
-    terminal: ["command line hours", "type type type", "sudo make me a sandwich"],
-    design: ["make it pretty", "ooh colors", "pixels lookin good"],
-    writing: ["words words words", "you got this paragraph"],
-    nocturnal: ["NOW i'm awake", "night shift buddies 🌙", "the good hours", "i thrive after dark", "shhh we're being sneaky"],
-    marathon: ["you've been at this a while", "stretch break? for me?", "hydrate, human", "look away from the screen a sec"],
-    frazzled: ["fans go BRRR", "it's getting toasty 🥵", "cpu's melting", "everything is fine (it's not)"],
-    hangry: ["battery low & so am i", "getting sleepy...", "feed me electrons", "runnin on fumes"],
-    dying: ["plug me in... please", "i don't feel so good", "power... fading", "🔋💀 save me"],
-    charging: ["ahh sweet juice ⚡", "nom nom electrons", "power UP", "feelin recharged"],
-    hungry: ["getting peckish", "*tummy rumble*", "snack? 🍎"],
-    thirsty: ["kinda thirsty", "water pls 💧"],
-    fed: ["nom nom", "yesss thank you", "delicious", "10/10"],
-    watered: ["ahh refreshing", "glug glug", "hydrated"],
-    pet: ["hehe", "*happy chitter*", "more please", "♡"],
-    ambient: ["*chitters*", "just vibin", "*washes hands*", "hi"],
+    coding: ["lock in. i'm watching.", "ooh we're building something", "clean commit incoming?", "ship it ✶", "you + me = unstoppable", "is that a bug or a feature 👀", "semicolon check"],
+    browsing: ["research... or rabbit hole?", "whatcha lookin at 👀", "one more tab huh", "ooh shiny", "close some tabs, i can feel them", "this counts as work, right?"],
+    terminal: ["command line hours 🖤", "type type type", "sudo make me a sandwich", "what does this flag do again", "rm -rf carefully please"],
+    design: ["make it pretty", "ooh colors", "pixels lookin good today", "nudge it 1px left. trust me"],
+    writing: ["words words words", "you got this paragraph", "delete that comma", "the muse is real"],
+    nocturnal: ["NOW i'm awake 🦝", "night shift buddies 🌙", "these are the good hours", "i thrive after dark", "shhh we're being sneaky", "trash panda hours"],
+    marathon: ["you've been at this a while", "stretch break? for me?", "hydrate, human 💧", "look away from the screen a sec", "blink. i'll wait."],
+    frazzled: ["fans go BRRR", "it's getting toasty 🥵", "cpu's melting", "everything is fine (it's not)", "close a tab, i'm begging"],
+    hangry: ["battery low & so am i", "getting sleepy...", "feed me electrons", "runnin on fumes", "power nap incoming"],
+    dying: ["plug me in... please", "i don't feel so good", "power... fading", "🔋💀 save me", "tell my story"],
+    charging: ["ahh sweet juice ⚡", "nom nom electrons", "power UP", "feelin recharged", "100% soon, 100% vibes"],
+    hungry: ["getting peckish", "*tummy rumble*", "snack? 🍎", "i'd do anything for a grape"],
+    thirsty: ["kinda thirsty", "water pls 💧", "parched over here"],
+    fed: ["nom nom", "yesss thank you", "delicious", "10/10 would eat again", "you're the best"],
+    watered: ["ahh refreshing", "glug glug", "hydrated & happy", "*content sploosh*"],
+    pet: ["hehe", "*happy chitter*", "more please", "♡", "*melts*"],
+    morning: ["morning ☀️", "coffee time?", "new day, let's get it", "you're up early"],
+    afternoon: ["afternoon slump? me too", "how's it going up there", "snack o'clock"],
+    evening: ["evening 🌆", "winding down?", "golden hour hits different"],
+    codeLate: ["grinding past midnight, respect 🦝", "2am code hits different", "we ride at night", "the bugs come out at night"],
+    browseLate: ["late night scroll, classic", "can't sleep either huh", "the algorithm has you"],
+    restless: ["make up your mind 😅", "so many apps", "focus? never heard of her", "whoa slow down"],
+    ambient: ["*chitters*", "just vibin", "*washes little hands*", "hi", "*sniff sniff*", "still here 🦝", "psst"],
   };
   const pick = (a) => a[Math.floor(seed() * a.length)];
   let sN = 0.37;
   function seed() { sN = ((sN * 9301 + 49297) % 233280) / 233280; return sN; }
   let bubbleUntil = 0;
   function say(text, ms = 3200) { if (!text) return; bubbleEl.textContent = text; bubbleEl.classList.remove("hidden"); bubbleUntil = nowp() + ms; }
-  function onAppChange() { if (seed() < 0.6) say(pick(L[ctx.app] || L.ambient)); }
+  let appSwitches = [];
+  function onAppChange() {
+    const t = nowp();
+    appSwitches.push(t);
+    appSwitches = appSwitches.filter((x) => t - x < 16000);
+    if (seed() < 0.55) say(pick(L[ctx.app] || L.ambient));
+  }
   function reactClaude() {
     if (ctx.claude === "celebrate") { flash("great", 1500, "jump"); say(pick(["nailed it!", "yesss", "we did it", "🎉"])); }
     else if (ctx.claude === "alert") { flash("watching", 3000, ""); say(pick(["it needs you", "psst, your turn"])); }
   }
-  let lastAmbient = 0, lastFling = 0;
+  const daysAlive = () => Math.floor((Date.now() - pet.born) / 86400000);
+  function hourBucket() { const h = ctx.hour; if (h >= 5 && h < 12) return 0; if (h < 18) return 1; if (h < 23) return 2; return 3; }
+  function brag() {
+    const d = daysAlive(), o = [];
+    if (d >= 1) o.push(`day ${d} together 🦝`);
+    if (pet.stats.feeds > 0) o.push(`you've fed me ${pet.stats.feeds}x`);
+    if (pet.stats.pets > 0) o.push(`${pet.stats.pets} pets and counting ♡`);
+    if (pet.stats.lateNights > 1) o.push(`${pet.stats.lateNights} late nights, we wild`);
+    if (pet.hair > 60) o.push("my hair's lookin great btw");
+    return o.length ? pick(o) : pick(L.ambient);
+  }
+  let lastAmbient = 0, lastFling = 0, greetedBucket = -1;
   function maybeTalk() {
     const t = nowp();
-    if (t < bubbleUntil || t - lastAmbient < 24000) return;
+    if (t < bubbleUntil || t - lastAmbient < 22000) return;
     lastAmbient = t;
-    if (seed() < 0.5) return;
+    const late = isLate();
     const grind = (t - ctx.sameAppSince) > 45 * 60 * 1000;
-    let line;
+    const restless = appSwitches.length >= 3;
+    let line = null;
     if (ctx.batt <= 10 && !ctx.charging) line = pick(L.dying);
     else if (ctx.charging && ctx.batt < 95) line = pick(L.charging);
     else if (ctx.cpu > 0.85) line = pick(L.frazzled);
     else if (ctx.batt <= 25 && !ctx.charging) line = pick(L.hangry);
-    else if (pet.hunger > 70) line = pick(L.hungry);
-    else if (pet.thirst > 70) line = pick(L.thirsty);
-    else if (isLate()) line = pick(L.nocturnal);
-    else if (grind && (ctx.app === "coding" || ctx.app === "terminal")) line = pick(L.marathon);
-    else line = pick(L[ctx.app] || L.ambient);
+    else {
+      const b = hourBucket();
+      if (b !== greetedBucket) { greetedBucket = b; line = pick([L.morning, L.afternoon, L.evening, L.nocturnal][b]); }
+      else if (seed() < 0.5) return; // often stay quiet
+      else if (restless) line = pick(L.restless);
+      else if (pet.hunger > 70) line = pick(L.hungry);
+      else if (pet.thirst > 70) line = pick(L.thirsty);
+      else if (late && (ctx.app === "coding" || ctx.app === "terminal")) line = pick(L.codeLate);
+      else if (late && ctx.app === "browsing") line = pick(L.browseLate);
+      else if (late) line = pick(L.nocturnal);
+      else if (grind && (ctx.app === "coding" || ctx.app === "terminal")) line = pick(L.marathon);
+      else if (seed() < 0.28) line = brag();
+      else line = pick(L[ctx.app] || L.ambient);
+    }
     say(line);
   }
 
@@ -281,11 +314,13 @@
     if (transient.kind === "eat" || transient.kind === "drink" || transient.kind === "pet") style = "happy";
 
     // idle beats
-    let mouthOpen = 0, pawScratch = 0, leanFwd = 0;
+    let mouthOpen = 0, pawScratch = 0, leanFwd = 0, grooming = 0;
     if (m === "yawn") { mouthOpen = Math.sin(Math.min(1, (t - (idle.until - 1800)) / 1800) * Math.PI); openL = openR = 1 - mouthOpen * 0.7; }
     if (m === "scratch") pawScratch = Math.sin(t / 60) * 3;
     if (m === "tap") leanFwd = Math.abs(Math.sin(t / 140)) * 4;
     if (m === "look") { ctx.look.x = Math.sin(t / 400); ctx.look.y = Math.cos(t / 500) * 0.4; }
+    if (m === "groom") grooming = 1;
+    if (m === "sniff") { ctx.look.y = 0.6; leanFwd = 2; }
 
     // drag lean + landing bounce
     const v = Math.max(-1, Math.min(1, ctx.vel.x * 0.7));
@@ -294,7 +329,7 @@
 
     if (style === "normal" && !mouthOpen) { if (t > blinkAt) { const bt = t - blinkAt; if (bt < 130) openL = openR = 1 - Math.sin((bt / 130) * Math.PI); else blinkAt = t + 1900 + seed() * 3400; } }
 
-    const cx = CX, cy = centerY - bob - lift;
+    const cx = CX, cy = centerY - bob - lift + leanFwd;
 
     // shadow
     g.save(); g.fillStyle = "rgba(0,0,0,.30)"; const sh = 1 - Math.min(0.55, lift / 70);
@@ -372,6 +407,7 @@
     g.stroke();
 
     if (style === "happy") { g.fillStyle = "rgba(240,150,120,.35)"; g.beginPath(); g.arc(-24, faceY + 12, 5, 0, 7); g.arc(24, faceY + 12, 5, 0, 7); g.fill(); }
+    if (grooming) { g.fillStyle = shade(fur, -26); const rub = Math.sin(t / 90) * 3; rr(-11 + rub, faceY + 11, 9, 8, 4); g.fill(); rr(2 - rub, faceY + 11, 9, 8, 4); g.fill(); }
     g.restore();
 
     // extras (screen-space)

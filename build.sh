@@ -5,9 +5,9 @@
 set -e
 D="$(cd "$(dirname "$0")" && pwd)"
 UID_="$(id -u)"
+LABEL="app.deskpet"
 APP="$HOME/Applications/deskpet.app"
-PLIST="$HOME/Library/LaunchAgents/com.dsirota.deskpet.plist"
-LABEL="com.dsirota.deskpet"
+PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 
 echo "==> release build"
 ( cd "$D/src-tauri" && cargo build --release )
@@ -28,13 +28,13 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$D/src-tauri/target/release/deskpet" "$APP/Contents/MacOS/deskpet"
 cp "$D/src-tauri/icons/icon.icns" "$APP/Contents/Resources/icon.icns"
 cp "$D/deskpet.sb" "$APP/Contents/Resources/deskpet.sb"
-cat > "$APP/Contents/Info.plist" <<'PLIST'
+cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
   <key>CFBundleName</key><string>deskpet</string>
   <key>CFBundleDisplayName</key><string>deskpet</string>
-  <key>CFBundleIdentifier</key><string>com.dsirota.deskpet</string>
+  <key>CFBundleIdentifier</key><string>$LABEL</string>
   <key>CFBundleVersion</key><string>0.1.0</string>
   <key>CFBundleShortVersionString</key><string>0.1.0</string>
   <key>CFBundleExecutable</key><string>deskpet</string>
@@ -48,6 +48,9 @@ PLIST
 
 echo "==> launch agent (sandboxed, deny-network, start at login)"
 mkdir -p "$HOME/Library/LaunchAgents"
+# clean up any prior install (including the pre-1.0 personal identifier)
+launchctl bootout "gui/$UID_/com.dsirota.deskpet" 2>/dev/null || true
+rm -f "$HOME/Library/LaunchAgents/com.dsirota.deskpet.plist"
 cat > "$PLIST" <<PL
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
