@@ -24,8 +24,20 @@ fn state_path() -> PathBuf {
 fn pet_path() -> PathBuf {
     deskpet_dir().join("pet.json")
 }
+fn pos_path() -> PathBuf {
+    deskpet_dir().join("pos")
+}
 fn read_trim(p: PathBuf) -> String {
     fs::read_to_string(p).unwrap_or_default().trim().to_string()
+}
+fn save_pos(x: i32, y: i32) {
+    let _ = fs::create_dir_all(deskpet_dir());
+    let _ = fs::write(pos_path(), format!("{},{}", x, y));
+}
+fn load_pos() -> Option<(i32, i32)> {
+    let s = read_trim(pos_path());
+    let mut it = s.split(',');
+    Some((it.next()?.parse().ok()?, it.next()?.parse().ok()?))
 }
 
 // ---- persistence commands (fs write stays in Rust; webview has no fs access) --
@@ -75,6 +87,43 @@ fn front_app() -> (String, String) {
     (cat.to_string(), name)
 }
 
+// ---- system vibe: CPU load + battery (local, no permissions) ------------------
+fn sysctl_s(key: &str) -> String {
+    Command::new("sysctl")
+        .arg("-n")
+        .arg(key)
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default()
+}
+fn cpu_busy() -> f64 {
+    // 1-minute load average / core count -> roughly 0..1 (can exceed when slammed)
+    let la = sysctl_s("vm.loadavg"); // "{ 1.23 1.10 0.95 }"
+    let load1 = la
+        .split_whitespace()
+        .nth(1)
+        .and_then(|s| s.parse::<f64>().ok())
+        .unwrap_or(0.0);
+    let ncpu = sysctl_s("hw.ncpu").parse::<f64>().unwrap_or(8.0).max(1.0);
+    (load1 / ncpu).min(1.5)
+}
+fn battery() -> (i32, bool) {
+    let s = Command::new("pmset")
+        .arg("-g")
+        .arg("batt")
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+        .unwrap_or_default();
+    let pct = s
+        .split('%')
+        .next()
+        .and_then(|left| left.rsplit(|c: char| !c.is_ascii_digit()).next())
+        .and_then(|d| d.parse::<i32>().ok())
+        .unwrap_or(100);
+    let charging = s.contains("AC Power") || s.contains("charging") || s.contains("charged");
+    (pct, charging)
+}
+
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![load_pet, save_pet])
@@ -88,15 +137,41 @@ fn main() {
                 let _ = window.set_always_on_top(true);
                 let _ = window.set_visible_on_all_workspaces(true);
                 let _ = window.set_ignore_cursor_events(true); // click-through until you hover it
-                if let Ok(Some(monitor)) = window.primary_monitor() {
+
+                // macOS: let him ride along over other apps' fullscreen Spaces.
+                // canJoinAllSpaces(1) | stationary(16) | fullScreenAuxiliary(256)
+                #[cfg(target_os = "macos")]
+                {
+                    use objc2::msg_send;
+                    use objc2::runtime::AnyObject;
+                    if let Ok(ptr) = window.ns_window() {
+                        let ns = ptr as *mut AnyObject;
+                        let behavior: usize = 1 | 16 | 256;
+                        unsafe {
+                            let _: () = msg_send![ns, setCollectionBehavior: behavior];
+                        }
+                    }
+                }
+
+                // Restore the last dragged spot, else park bottom-center above the Dock.
+                if let Some((x, y)) = load_pos() {
+                    let _ = window.set_position(PhysicalPosition::new(x, y));
+                } else if let Ok(Some(monitor)) = window.primary_monitor() {
                     let m = monitor.size();
                     let w = window
                         .outer_size()
                         .unwrap_or(tauri::PhysicalSize { width: 280, height: 340 });
                     let x = ((m.width as i32) - (w.width as i32)) / 2;
-                    let y = (m.height as i32) - (w.height as i32) - 28; // sit just above the Dock
+                    let y = (m.height as i32) - (w.height as i32) - 28;
                     let _ = window.set_position(PhysicalPosition::new(x.max(0), y.max(0)));
                 }
+
+                // Remember where you drag it to.
+                window.on_window_event(|e| {
+                    if let tauri::WindowEvent::Moved(p) = e {
+                        save_pos(p.x, p.y);
+                    }
+                });
             }
 
             let handle = app.handle().clone();
@@ -124,6 +199,10 @@ fn main() {
                     let mut app_cat = String::from("unknown");
                     let mut app_name = String::new();
                     let mut last_app = Instant::now() - Duration::from_secs(10);
+                    let mut cpu = 0.0f64;
+                    let mut batt = 100i32;
+                    let mut charging = true;
+                    let mut last_sys = Instant::now() - Duration::from_secs(20);
                     let mut hovering = false;
                     let mut ignoring = true;
                     loop {
@@ -132,6 +211,13 @@ fn main() {
                             app_cat = c;
                             app_name = n;
                             last_app = Instant::now();
+                        }
+                        if last_sys.elapsed() > Duration::from_secs(5) {
+                            cpu = cpu_busy();
+                            let (p, c) = battery();
+                            batt = p;
+                            charging = c;
+                            last_sys = Instant::now();
                         }
                         if let Some(window) = h.get_webview_window("pet") {
                             let scale = window.scale_factor().unwrap_or(1.0);
@@ -152,6 +238,7 @@ fn main() {
                                     "cursorX": cp.x, "cursorY": cp.y,
                                     "winX": wp.x, "winY": wp.y, "scale": scale,
                                     "hovering": hovering, "app": app_cat, "appName": app_name,
+                                    "cpu": cpu, "batt": batt, "charging": charging,
                                 });
                                 let _ = h.emit("ctx", payload);
                             }
