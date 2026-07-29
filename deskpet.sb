@@ -1,0 +1,8 @@
+(version 1)
+;; deskpet sandbox profile.
+;; Allow everything the app legitimately needs — drawing, reading the local
+;; system tools (lsappinfo/sysctl/pmset), and its files under ~/.deskpet — but
+;; let the KERNEL forbid all networking outright. This makes "local-only" a
+;; guarantee enforced by macOS, not just a property of the code.
+(allow default)
+(deny network*)

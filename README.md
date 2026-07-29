@@ -48,12 +48,34 @@ printf sleep     > ~/.deskpet/state   # dozes
 printf idle      > ~/.deskpet/state
 ```
 
-## Confidentiality checklist
+## Install (permanent, sandboxed)
 
-- `grep connect-src src-tauri/tauri.conf.json` → `connect-src 'none'`
-- No `reqwest`/`hyper`/http crate in `Cargo.toml`
-- No `node_modules` (frontend is dependency-free)
-- `cargo audit` covers the entire runtime tree
+```sh
+sh build.sh
+```
+
+Builds the release binary, bundles `~/Applications/deskpet.app` (a background
+agent — no Dock icon of its own), and installs a LaunchAgent that starts it at
+login and relaunches it if it crashes. It launches **inside a macOS sandbox
+profile** (`deskpet.sb`) that denies all networking at the kernel level.
+
+- stop: `launchctl bootout gui/$(id -u)/com.dsirota.deskpet`
+- uninstall: `rm -rf ~/Applications/deskpet.app ~/Library/LaunchAgents/com.dsirota.deskpet.plist ~/.deskpet`
+
+## Local-only, and how to verify it
+
+- **No network code in the binary.** `cargo tree -i reqwest` finds nothing and
+  `nm target/release/deskpet | grep -i reqwest` is empty. (Those names appear in
+  `Cargo.lock` only as optional/dev records Cargo tracks but never compiles.)
+- **The webview can't reach the network:** `connect-src 'none'` in
+  `tauri.conf.json`.
+- **The kernel forbids it too:** it runs under `sandbox-exec -f deskpet.sb`,
+  which is `(allow default)(deny network*)`. Prove it:
+  `sandbox-exec -f deskpet.sb curl https://example.com` → blocked.
+- **No open sockets at runtime:** `lsof -nP -a -p "$(pgrep -x deskpet)" -i` → none.
+- **No npm / `node_modules`** — the frontend is dependency-free.
+- **Everything it reads/writes is under `~/.deskpet/`**; the only external
+  commands it runs are local macOS tools (`lsappinfo`, `sysctl`, `pmset`).
 
 ## Remove
 
