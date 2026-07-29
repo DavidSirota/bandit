@@ -57,12 +57,7 @@ cat > "$PLIST" <<PL
 <plist version="1.0"><dict>
   <key>Label</key><string>$LABEL</string>
   <key>ProgramArguments</key>
-  <array>
-    <string>/usr/bin/sandbox-exec</string>
-    <string>-f</string>
-    <string>$APP/Contents/Resources/deskpet.sb</string>
-    <string>$APP/Contents/MacOS/deskpet</string>
-  </array>
+  <array><string>$APP/Contents/MacOS/deskpet</string></array>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
   <key>ProcessType</key><string>Interactive</string>
@@ -70,8 +65,9 @@ cat > "$PLIST" <<PL
 PL
 
 launchctl bootout "gui/$UID_/$LABEL" 2>/dev/null || true
-launchctl bootstrap "gui/$UID_" "$PLIST"
-launchctl kickstart "gui/$UID_/$LABEL"
+sleep 1
+launchctl bootstrap "gui/$UID_" "$PLIST" 2>/dev/null || { sleep 1; launchctl bootstrap "gui/$UID_" "$PLIST" 2>/dev/null || true; }
+launchctl kickstart "gui/$UID_/$LABEL" 2>/dev/null || true
 echo "==> done. deskpet is installed, sandboxed (no network), and running."
 echo "    stop:      launchctl bootout gui/$UID_/$LABEL"
 echo "    uninstall: rm -rf \"$APP\" \"$PLIST\" ~/.deskpet"

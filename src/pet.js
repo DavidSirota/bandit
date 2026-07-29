@@ -1,6 +1,6 @@
 // deskpet — a gentle raccoon Tamagotchi that lives on your Dock.
 // Original character (not based on anyone's IP). Reacts to real local signals:
-// which app you're in, CPU load, battery, time of day, and Claude Code.
+// which app you're in, CPU load, battery, time of day, and coding agent.
 // Runs in Tauri (context from Rust) and standalone in a browser (mouse + keys).
 (() => {
   "use strict";
@@ -20,8 +20,8 @@
 
   // ---- persisted pet ---------------------------------------------------
   const DEFAULT = {
-    name: "raccoon", born: Date.now(),
-    bodyColor: "#2a2d38", hairColor: "#7bbf6a", scale: 1,
+    name: "Bandit", born: Date.now(),
+    bodyColor: "#2a2d38", hairColor: "#7bbf6a", scale: 1, theme: "os",
     hunger: 20, thirst: 20, hair: 12, happy: 82,
     lastTick: Date.now(),
     stats: { feeds: 0, waters: 0, pets: 0, lateNights: 0, lastLateNight: 0 },
@@ -39,6 +39,12 @@
     pet.happy = Math.max(15, pet.happy - awayH * 3);
     pet.lastTick = Date.now();
     $("bodyc").value = pet.bodyColor; $("hairc").value = pet.hairColor;
+    applyTheme();
+  }
+  function applyTheme() {
+    if (pet.theme && pet.theme !== "os") document.body.dataset.theme = pet.theme;
+    else delete document.body.dataset.theme;
+    document.querySelectorAll("#themeSeg button").forEach((b) => b.classList.toggle("on", b.dataset.theme === (pet.theme || "os")));
   }
   let saveT = 0;
   function savePet() {
@@ -54,7 +60,7 @@
   const ctx = {
     look: { x: 0, y: 0 }, hovering: false,
     app: "other", appName: "", hour: new Date().getHours(),
-    cpu: 0, batt: 100, charging: true, claude: "",
+    cpu: 0, batt: 100, charging: true, task: "",
     sameAppSince: Date.now(), vel: { x: 0 },
   };
   let prevWin = null, prevWt = 0;
@@ -74,7 +80,7 @@
       if (prevWin) { const dt = Math.max(16, tn - prevWt); ctx.vel.x = ctx.vel.x * 0.5 + ((p.winX - prevWin) / dt) * 0.5; }
       prevWin = p.winX; prevWt = tn;
     });
-    window.__TAURI__.event.listen("claude", (e) => { ctx.claude = String(e.payload || ""); reactClaude(); });
+    window.__TAURI__.event.listen("task", (e) => { ctx.task = String(e.payload || ""); reactTask(); });
   } else {
     window.addEventListener("mousemove", (e) => {
       const r = canvas.getBoundingClientRect();
@@ -111,7 +117,7 @@
     if (ctx.batt <= 25 && !ctx.charging) return "hangry";
     if (ctx.charging && ctx.batt < 95) return "charging";
     if (isLate()) return "nocturnal";
-    if (ctx.claude === "working" || ctx.claude === "thinking") return "watching";
+    if (ctx.task === "working" || ctx.task === "thinking") return "watching";
     const bad = Math.max(pet.hunger, pet.thirst);
     if (bad > 78 || pet.happy < 25) return "sad";
     if (bad > 55) return "meh";
@@ -176,9 +182,9 @@
     appSwitches = appSwitches.filter((x) => t - x < 16000);
     if (seed() < 0.55) say(pick(L[ctx.app] || L.ambient));
   }
-  function reactClaude() {
-    if (ctx.claude === "celebrate") { flash("great", 1500, "jump"); say(pick(["nailed it!", "yesss", "we did it", "🎉"])); }
-    else if (ctx.claude === "alert") { flash("watching", 3000, ""); say(pick(["it needs you", "psst, your turn"])); }
+  function reactTask() {
+    if (ctx.task === "celebrate") { flash("great", 1500, "jump"); say(pick(["nailed it!", "yesss", "we did it", "🎉"])); }
+    else if (ctx.task === "alert") { flash("watching", 3000, ""); say(pick(["it needs you", "psst, your turn"])); }
   }
   const daysAlive = () => Math.floor((Date.now() - pet.born) / 86400000);
   function hourBucket() { const h = ctx.hour; if (h >= 5 && h < 12) return 0; if (h < 18) return 1; if (h < 23) return 2; return 3; }
@@ -236,6 +242,9 @@
   $("sizeUp").addEventListener("click", () => { pet.scale = Math.min(1.5, pet.scale + 0.1); savePet(); });
   $("sizeDown").addEventListener("click", () => { pet.scale = Math.max(0.7, pet.scale - 0.1); savePet(); });
   $("editDone").addEventListener("click", () => { editEl.classList.add("hidden"); editMode = false; });
+  document.querySelectorAll("#themeSeg button").forEach((b) =>
+    b.addEventListener("click", (e) => { e.stopPropagation(); pet.theme = b.dataset.theme; applyTheme(); savePet(); })
+  );
   function syncUI() {
     menuEl.classList.toggle("hidden", !(ctx.hovering && !editMode));
     if (!ctx.hovering && editMode) { editEl.classList.add("hidden"); editMode = false; }
@@ -359,10 +368,11 @@
     // belly patch (lighter)
     g.save(); g.globalAlpha = 0.5; g.fillStyle = shade(fur, 22); rr(-w / 2 + 14, -4, w - 28, h / 2, 22); g.fill(); g.restore();
 
-    // feet
+    // feet — shuffle while walking (window moving) so it reads as crawling
     g.fillStyle = shade(fur, -26);
-    rr(-20, h / 2 - 6 + pawScratch, 15, 9, 5); g.fill();
-    rr(6, h / 2 - 6 - pawScratch, 15, 9, 5); g.fill();
+    const walk = (Math.abs(ctx.vel.x) > 0.12 || m === "watching") ? Math.sin(t / 70) * 3 : 0;
+    rr(-20, h / 2 - 6 + pawScratch + walk, 15, 9, 5); g.fill();
+    rr(6, h / 2 - 6 - pawScratch - walk, 15, 9, 5); g.fill();
 
     // --- face ---
     const faceY = -8;

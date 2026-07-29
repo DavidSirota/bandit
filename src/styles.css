@@ -8,132 +8,110 @@ body {
   user-select: none;
   cursor: default;
   font: 12px/1.35 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  color: #f4efe6;
+  color: var(--ui-fg);
 }
 
-#stage {
-  position: relative;
-  width: 280px;
-  height: 340px;
+/* ---- theme tokens: dark default, light via OS, or forced by data-theme ---- */
+:root {
+  --ui-bg: rgba(26, 28, 36, 0.95);
+  --ui-fg: #f4efe6;
+  --ui-border: rgba(255, 255, 255, 0.18);
+  --ui-shadow: rgba(0, 0, 0, 0.55);
+  --bub-bg: #23252e;
+  --bub-fg: #f6f2ea;
+  --bub-ink: #f0ece3; /* the bold cartoon outline */
+  --accent: #e6a24a;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --ui-bg: #ffffff; --ui-fg: #20222a; --ui-border: #20222a; --ui-shadow: rgba(0, 0, 0, 0.25);
+    --bub-bg: #ffffff; --bub-fg: #20222a; --bub-ink: #20222a;
+  }
+}
+body[data-theme="dark"] {
+  --ui-bg: rgba(26, 28, 36, 0.95); --ui-fg: #f4efe6; --ui-border: rgba(255, 255, 255, 0.18); --ui-shadow: rgba(0, 0, 0, 0.55);
+  --bub-bg: #23252e; --bub-fg: #f6f2ea; --bub-ink: #f0ece3;
+}
+body[data-theme="light"] {
+  --ui-bg: #ffffff; --ui-fg: #20222a; --ui-border: #20222a; --ui-shadow: rgba(0, 0, 0, 0.25);
+  --bub-bg: #ffffff; --bub-fg: #20222a; --bub-ink: #20222a;
 }
 
-#pet {
-  position: absolute;
-  inset: 0;
-  width: 280px;
-  height: 340px;
-}
+#stage { position: relative; width: 280px; height: 340px; }
+#pet { position: absolute; inset: 0; width: 280px; height: 340px; }
+.hidden { display: none !important; }
 
-.hidden {
-  display: none !important;
-}
-
-/* speech bubble */
+/* ---- cartoon speech bubble ---- */
 #bubble {
   position: absolute;
   left: 50%;
-  top: 40px;
+  top: 92px;
   transform: translateX(-50%);
-  max-width: 210px;
-  padding: 8px 12px;
-  background: rgba(20, 22, 30, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 13px;
+  max-width: 208px;
+  padding: 9px 14px;
+  background: var(--bub-bg);
+  color: var(--bub-fg);
+  border: 3px solid var(--bub-ink);
+  border-radius: 20px;
+  font-weight: 700;
   text-align: center;
-  box-shadow: 0 8px 22px -10px rgba(0, 0, 0, 0.7);
-  animation: pop 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow: 0 3px 9px -2px rgba(0, 0, 0, 0.5);
+  animation: pop 0.22s cubic-bezier(0.2, 0.9, 0.2, 1.3);
 }
+/* outlined comic tail — a fat outline triangle with the fill triangle on top */
+#bubble::before,
 #bubble::after {
   content: "";
   position: absolute;
   left: 50%;
-  bottom: -6px;
-  transform: translateX(-50%) rotate(45deg);
-  width: 10px;
-  height: 10px;
-  background: rgba(20, 22, 30, 0.92);
-  border-right: 1px solid rgba(255, 255, 255, 0.12);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  width: 0;
+  height: 0;
+  border-left: 13px solid transparent;
+  border-right: 13px solid transparent;
 }
-@keyframes pop {
-  from { opacity: 0; transform: translateX(-50%) scale(0.85) translateY(4px); }
-}
+#bubble::before { bottom: -19px; transform: translateX(-50%); border-top: 19px solid var(--bub-ink); }
+#bubble::after { bottom: -12px; transform: translateX(-50%); border-top: 14px solid var(--bub-bg); }
+@keyframes pop { from { opacity: 0; transform: translateX(-50%) scale(0.8) translateY(6px); } }
 
-/* hover menu — a row of round buttons above the creature */
+/* ---- hover menu (hugs just above him) ---- */
 #menu {
   position: absolute;
   left: 50%;
-  top: 96px;
+  top: 132px;
   transform: translateX(-50%);
   display: flex;
   gap: 8px;
-  animation: pop 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: pop 0.18s cubic-bezier(0.2, 0.9, 0.2, 1.3);
 }
 .mbtn {
-  width: 40px;
-  height: 40px;
-  padding: 0;
+  width: 40px; height: 40px; padding: 0;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(24, 26, 34, 0.94);
-  color: #f4efe6;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.7);
-  transition: transform 0.1s, background 0.1s;
+  border: 2px solid var(--ui-border);
+  background: var(--ui-bg);
+  color: var(--ui-fg);
+  display: grid; place-items: center; cursor: pointer;
+  box-shadow: 0 4px 12px -4px var(--ui-shadow);
+  transition: transform 0.1s;
 }
 .mbtn svg { width: 20px; height: 20px; }
-.mbtn:hover { transform: translateY(-2px); background: rgba(40, 43, 54, 0.96); }
-.mbtn:active { transform: translateY(0) scale(0.94); }
+.mbtn:hover { transform: translateY(-2px); }
+.mbtn:active { transform: scale(0.94); }
 
-/* edit panel */
+/* ---- edit panel ---- */
 #edit {
   position: absolute;
-  left: 50%;
-  top: 84px;
-  transform: translateX(-50%);
-  width: 168px;
-  padding: 12px;
-  background: rgba(20, 22, 30, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  box-shadow: 0 10px 26px -10px rgba(0, 0, 0, 0.8);
-  animation: pop 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+  left: 50%; top: 86px; transform: translateX(-50%);
+  width: 184px; padding: 12px;
+  background: var(--ui-bg); color: var(--ui-fg);
+  border: 2px solid var(--ui-border); border-radius: 16px;
+  box-shadow: 0 10px 26px -10px var(--ui-shadow);
+  animation: pop 0.18s cubic-bezier(0.2, 0.9, 0.2, 1.3);
 }
-#edit .row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 9px;
-}
-#edit .row span { color: #9c968a; letter-spacing: 0.02em; }
-#edit input[type="color"] {
-  width: 40px;
-  height: 24px;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 6px;
-  background: none;
-  cursor: pointer;
-}
-#edit button {
-  min-width: 26px;
-  height: 24px;
-  margin-left: 6px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(40, 43, 54, 0.9);
-  color: #f4efe6;
-  cursor: pointer;
-}
-#editDone {
-  width: 100%;
-  margin-top: 4px;
-  margin-left: 0;
-  padding: 6px;
-  background: rgba(230, 162, 74, 0.9);
-  color: #1c1408;
-  border: none;
-  font-weight: 600;
-}
+#edit .row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
+#edit .row span { opacity: 0.65; }
+#edit input[type="color"] { width: 40px; height: 24px; padding: 0; border: 1px solid var(--ui-border); border-radius: 6px; background: none; cursor: pointer; }
+#edit .seg { display: flex; gap: 4px; }
+#edit .seg button, #edit .stepper button { height: 24px; padding: 0 8px; border-radius: 7px; border: 1px solid var(--ui-border); background: transparent; color: var(--ui-fg); cursor: pointer; font-size: 11px; }
+#edit .seg button.on { background: var(--accent); color: #1c1408; border-color: var(--accent); font-weight: 700; }
+#edit .stepper button { min-width: 26px; margin-left: 6px; }
+#editDone { width: 100%; margin-top: 4px; height: 28px; background: var(--accent); color: #1c1408; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }

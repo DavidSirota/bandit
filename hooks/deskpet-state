@@ -1,7 +1,7 @@
 #!/bin/sh
 # deskpet-state <mood>
 # Writes a single mood word to the local state file the creature watches.
-# Purely local. No network, ever. Invoked by Claude Code hooks.
+# Purely local. No network, ever. Written by any tool (e.g. an editor hook) to drive his mood.
 #
 # moods: idle | thinking | working | celebrate | alert | sleep
 STATE_DIR="$HOME/.deskpet"

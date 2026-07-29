@@ -124,7 +124,38 @@ fn battery() -> (i32, bool) {
     (pct, charging)
 }
 
+// Re-launch ourselves inside the bundled sandbox profile so that even a
+// double-clicked .app is network-denied by the kernel — not just the scripted
+// install. No-op when running loose (dev) or once already sandboxed.
+#[cfg(target_os = "macos")]
+fn ensure_sandboxed() {
+    use std::os::unix::process::CommandExt;
+    if std::env::var_os("DESKPET_SANDBOXED").is_some() {
+        return;
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        // .../Contents/MacOS/deskpet -> .../Contents/Resources/deskpet.sb
+        if let Some(prof) = exe
+            .parent()
+            .and_then(|p| p.parent())
+            .map(|c| c.join("Resources/deskpet.sb"))
+        {
+            if prof.exists() {
+                let _ = Command::new("/usr/bin/sandbox-exec")
+                    .arg("-f")
+                    .arg(&prof)
+                    .arg(&exe)
+                    .env("DESKPET_SANDBOXED", "1")
+                    .exec(); // replaces this process; only returns on error
+            }
+        }
+    }
+}
+
 fn main() {
+    #[cfg(target_os = "macos")]
+    ensure_sandboxed();
+
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![load_pet, save_pet])
         .setup(|app| {
@@ -176,7 +207,7 @@ fn main() {
 
             let handle = app.handle().clone();
 
-            // Claude Code state file -> "claude" events
+            // coding agent state file -> "task" events
             {
                 let h = handle.clone();
                 thread::spawn(move || {
@@ -185,7 +216,7 @@ fn main() {
                         let cur = read_trim(state_path());
                         if !cur.is_empty() && cur != last {
                             last = cur.clone();
-                            let _ = h.emit("claude", cur);
+                            let _ = h.emit("task", cur);
                         }
                         thread::sleep(Duration::from_millis(300));
                     }
@@ -206,6 +237,9 @@ fn main() {
                     let mut hovering = false;
                     let mut ignoring = true;
                     let mut last_interact = Instant::now();
+                    let mut next_wander = Instant::now() + Duration::from_secs(12);
+                    let mut target_x: Option<i32> = None;
+                    let mut wander_dir: i32 = 1;
                     let mut screen = (2560i32, 1440i32);
                     if let Some(win) = h.get_webview_window("pet") {
                         if let Ok(Some(mon)) = win.primary_monitor() {
@@ -246,18 +280,45 @@ fn main() {
                                 // scurry home: if abandoned floating mid-screen, scoot to a corner
                                 if hovering {
                                     last_interact = Instant::now();
+                                    target_x = None;
                                 } else {
                                     let (ww, wh) = window
                                         .outer_size()
                                         .map(|s| (s.width as i32, s.height as i32))
                                         .unwrap_or((560, 680));
                                     let floating = (screen.1 - (wp.y + wh)) > 220;
+                                    let idle = last_interact.elapsed() > Duration::from_secs(6);
                                     if floating && last_interact.elapsed() > Duration::from_secs(8) {
+                                        // scurry home to a bottom corner
+                                        target_x = None;
                                         let hx = screen.0 - ww - 24;
                                         let hy = screen.1 - wh - 24;
                                         let nx = wp.x + (((hx - wp.x) as f64) * 0.18) as i32;
                                         let ny = wp.y + (((hy - wp.y) as f64) * 0.18) as i32;
                                         let _ = window.set_position(PhysicalPosition::new(nx, ny));
+                                    } else if !floating && idle {
+                                        // wander: pace slowly back and forth along the Dock
+                                        match target_x {
+                                            None => {
+                                                if Instant::now() > next_wander {
+                                                    let minx = 16;
+                                                    let maxx = (screen.0 - ww - 16).max(minx);
+                                                    let tx = (wp.x + 150 * wander_dir).clamp(minx, maxx);
+                                                    target_x = Some(tx);
+                                                }
+                                            }
+                                            Some(tx) => {
+                                                let dx = tx - wp.x;
+                                                if dx.abs() <= 2 {
+                                                    target_x = None;
+                                                    wander_dir = -wander_dir;
+                                                    next_wander = Instant::now() + Duration::from_secs(12);
+                                                } else {
+                                                    let stepx = if dx > 0 { 2 } else { -2 };
+                                                    let _ = window.set_position(PhysicalPosition::new(wp.x + stepx, wp.y));
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                                 let payload = serde_json::json!({

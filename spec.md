@@ -2,13 +2,13 @@
 
 A private, in-house desktop creature for macOS, inspired by Clawd, built so **no
 third party ever sees your work**. The creature lives above the Dock and reacts
-to Claude Code activity in real time: it perks up when you send a prompt, works
+to a coding agent activity in real time: it perks up when you send a prompt, works
 while tools run, jumps when a turn finishes, and dozes off when left alone.
 
 ## Why in-house
 
 The whole point is confidentiality. Community desktop pets install hooks that
-read your Claude Code sessions; this one is yours end to end. It is built so it
+read your a coding agent sessions; this one is yours end to end. It is built so it
 *cannot* leak:
 
 - **No network, enforced twice.** The webview CSP sets `connect-src 'none'`, and
@@ -30,14 +30,14 @@ Three small pieces, each with one job:
    see-through. Positions itself above the Dock on launch.
 2. **The creature** (`src/pet.js`) — a hand-drawn canvas character with a mood
    state machine. No image assets. Retint via the `T` theme object.
-3. **The bridge** (`hooks/`) — Claude Code hooks echo a mood word into
+3. **The bridge** (`hooks/`) — a coding agent hooks echo a mood word into
    `~/.deskpet/state`. A Rust thread polls that file and emits a `mood` event to
    the webview.
 
 ## Data flow
 
 ```
-Claude Code event → hook command → ~/.deskpet/state (one word)
+a coding agent event → hook command → ~/.deskpet/state (one word)
    → Rust polls file (350 ms) → emits "mood" event → pet.js state machine → animation
 ```
 
@@ -45,7 +45,7 @@ One direction, one local file. Nothing else is read or written.
 
 ## Moods
 
-| Claude Code hook           | state       | animation                         |
+| a coding agent hook           | state       | animation                         |
 | -------------------------- | ----------- | --------------------------------- |
 | `UserPromptSubmit`         | `thinking`  | looks up, thought bubble rises    |
 | `PreToolUse` / `PostToolUse` | `working`  | busy shuffle, focused eyes        |
