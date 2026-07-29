@@ -1,0 +1,20 @@
+#!/bin/sh
+# Prints a coarse activity category for the frontmost app, plus its name.
+# Local only — uses LaunchServices (lsappinfo), no Accessibility permission,
+# nothing leaves the machine. Output: "<category>|<app name>"
+#
+# categories: coding | terminal | browsing | design | writing | chatting | other | unknown
+name=$(lsappinfo info -only name "$(lsappinfo front 2>/dev/null)" 2>/dev/null \
+  | sed -n 's/.*"LSDisplayName"="\(.*\)".*/\1/p')
+
+case "$name" in
+  *Code*|*Xcode*|*Cursor*|*Zed*|*IntelliJ*|*PyCharm*|*WebStorm*|*Sublime*|*Nova*|*Windsurf*) cat=coding ;;
+  *Terminal*|*iTerm*|*Warp*|*Ghostty*|*kitty*|*Alacritty*|*Hyper*|*WezTerm*)                 cat=terminal ;;
+  *Safari*|*Chrome*|*Arc*|*Firefox*|*Brave*|*"Microsoft Edge"*|*Orion*|*Vivaldi*)           cat=browsing ;;
+  *Figma*|*Sketch*|*Photoshop*|*Illustrator*|*Blender*|*"Affinity"*)                        cat=design ;;
+  *Notion*|*Obsidian*|*Notes*|*"Microsoft Word"*|*Pages*|*"iA Writer"*|*Bear*)              cat=writing ;;
+  *Slack*|*Discord*|*Messages*|*Mail*|*Telegram*|*WhatsApp*)                                cat=chatting ;;
+  "")                                                                                       cat=unknown ;;
+  *)                                                                                        cat=other ;;
+esac
+printf '%s|%s' "$cat" "$name"

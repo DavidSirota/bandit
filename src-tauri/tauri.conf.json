@@ -13,8 +13,8 @@
       {
         "label": "pet",
         "title": "deskpet",
-        "width": 180,
-        "height": 200,
+        "width": 280,
+        "height": 340,
         "transparent": true,
         "decorations": false,
         "alwaysOnTop": true,
