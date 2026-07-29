@@ -21,7 +21,7 @@
   // ---- persisted pet ---------------------------------------------------
   const DEFAULT = {
     name: "raccoon", born: Date.now(),
-    bodyColor: "#8b90a0", hairColor: "#7bbf6a", scale: 1,
+    bodyColor: "#2a2d38", hairColor: "#7bbf6a", scale: 1,
     hunger: 20, thirst: 20, hair: 12, happy: 82,
     lastTick: Date.now(),
     stats: { feeds: 0, waters: 0, pets: 0, lateNights: 0, lastLateNight: 0 },
@@ -32,8 +32,6 @@
       const raw = IS_TAURI ? await invoke("load_pet") : localStorage.getItem("deskpet");
       if (raw) { const o = JSON.parse(raw); pet = { ...DEFAULT, ...o, stats: { ...DEFAULT.stats, ...(o.stats || {}) } }; }
     } catch (e) {}
-    // migrate pre-raccoon critters to the gray coat (they can recolor via Edit)
-    if (pet.bodyColor === "#2b2f3d") pet.bodyColor = DEFAULT.bodyColor;
     // away-decay: come back to a slightly needy critter (capped, never dire)
     const awayH = Math.max(0, (Date.now() - pet.lastTick) / 3600000);
     pet.hunger = Math.min(92, pet.hunger + awayH * 5);
@@ -335,8 +333,8 @@
     const faceY = -8;
     // brow fur (light) above the mask
     g.fillStyle = "#edeae1"; g.beginPath(); g.ellipse(0, faceY - 14, 26, 12, 0, 0, 7); g.fill();
-    // mask (dark band across eyes)
-    g.fillStyle = "#23252f";
+    // mask (dark band across eyes) — darker than the coat so it still reads
+    g.fillStyle = "#131319";
     g.beginPath();
     g.moveTo(-30, faceY - 8);
     g.quadraticCurveTo(0, faceY - 16, 30, faceY - 8);

@@ -205,6 +205,14 @@ fn main() {
                     let mut last_sys = Instant::now() - Duration::from_secs(20);
                     let mut hovering = false;
                     let mut ignoring = true;
+                    let mut last_interact = Instant::now();
+                    let mut screen = (2560i32, 1440i32);
+                    if let Some(win) = h.get_webview_window("pet") {
+                        if let Ok(Some(mon)) = win.primary_monitor() {
+                            let s = mon.size();
+                            screen = (s.width as i32, s.height as i32);
+                        }
+                    }
                     loop {
                         if last_app.elapsed() > Duration::from_millis(1500) {
                             let (c, n) = front_app();
@@ -233,6 +241,24 @@ fn main() {
                                 if want_ignore != ignoring {
                                     let _ = window.set_ignore_cursor_events(want_ignore);
                                     ignoring = want_ignore;
+                                }
+
+                                // scurry home: if abandoned floating mid-screen, scoot to a corner
+                                if hovering {
+                                    last_interact = Instant::now();
+                                } else {
+                                    let (ww, wh) = window
+                                        .outer_size()
+                                        .map(|s| (s.width as i32, s.height as i32))
+                                        .unwrap_or((560, 680));
+                                    let floating = (screen.1 - (wp.y + wh)) > 220;
+                                    if floating && last_interact.elapsed() > Duration::from_secs(8) {
+                                        let hx = screen.0 - ww - 24;
+                                        let hy = screen.1 - wh - 24;
+                                        let nx = wp.x + (((hx - wp.x) as f64) * 0.18) as i32;
+                                        let ny = wp.y + (((hy - wp.y) as f64) * 0.18) as i32;
+                                        let _ = window.set_position(PhysicalPosition::new(nx, ny));
+                                    }
                                 }
                                 let payload = serde_json::json!({
                                     "cursorX": cp.x, "cursorY": cp.y,
