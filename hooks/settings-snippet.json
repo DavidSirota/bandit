@@ -1,0 +1,20 @@
+{
+  "_comment": "Reference only. Run hooks/install-hooks.js to merge these into ~/.claude/settings.json safely (it appends, backs up first, and uses absolute paths).",
+  "hooks": {
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": "~/Projects/deskpet/hooks/deskpet-state thinking" }] }
+    ],
+    "PreToolUse": [
+      { "matcher": "*", "hooks": [{ "type": "command", "command": "~/Projects/deskpet/hooks/deskpet-state working" }] }
+    ],
+    "PostToolUse": [
+      { "matcher": "*", "hooks": [{ "type": "command", "command": "~/Projects/deskpet/hooks/deskpet-state working" }] }
+    ],
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "~/Projects/deskpet/hooks/deskpet-state celebrate" }] }
+    ],
+    "Notification": [
+      { "hooks": [{ "type": "command", "command": "~/Projects/deskpet/hooks/deskpet-state alert" }] }
+    ]
+  }
+}

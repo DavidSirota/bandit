@@ -1,0 +1,12 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Minimal capabilities: receive mood events and let the creature be dragged. No fs, shell, http, or dialog access is granted to the webview.",
+  "windows": ["pet"],
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "core:window:allow-start-dragging",
+    "core:window:allow-set-position"
+  ]
+}

@@ -1,0 +1,24 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: transparent; /* the window is transparent; only the creature shows */
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
+#stage {
+  width: 180px;
+  height: 200px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+#pet {
+  width: 180px;
+  height: 200px;
+  display: block;
+}

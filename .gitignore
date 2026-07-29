@@ -1,0 +1,9 @@
+# Rust / Tauri build artifacts
+src-tauri/target/
+src-tauri/gen/
+
+# macOS
+.DS_Store
+
+# local runtime state (created at ~/.deskpet, not here, but just in case)
+.deskpet/
