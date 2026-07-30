@@ -54,6 +54,12 @@ fn load_pos() -> Option<(i32, i32)> {
     let mut it = s.split(',');
     Some((it.next()?.parse().ok()?, it.next()?.parse().ok()?))
 }
+// roam setting from pet.json: "free" = wander the screen, else Dock only
+fn roam_is_free() -> bool {
+    fs::read_to_string(pet_path())
+        .map(|s| s.contains("\"roamMode\":\"free\"") || s.contains("\"roamMode\": \"free\""))
+        .unwrap_or(false)
+}
 
 // ---- persistence commands (fs write stays in Rust; webview has no fs access) --
 #[tauri::command]
@@ -257,6 +263,7 @@ fn main() {
                     let mut next_roam = Instant::now() + Duration::from_secs(10);
                     let mut roam_goal: Option<(i32, i32)> = None;
                     let mut nap_until: Option<Instant> = None;
+                    let mut free_roam = roam_is_free();
                     let mut screen = (2560i32, 1440i32);
                     // every display as (x, y, w, h) in the global space, so he can
                     // pace the Dock across monitors and step to each screen's bottom
@@ -291,6 +298,7 @@ fn main() {
                             let (p, c) = battery();
                             batt = p;
                             charging = c;
+                            free_roam = roam_is_free();
                             last_sys = Instant::now();
                         }
                         if let Some(window) = h.get_webview_window("pet") {
@@ -332,16 +340,16 @@ fn main() {
                                         match roam_goal {
                                             None => {
                                                 if Instant::now() > next_roam {
-                                                    // pick a new spot along the Dock, anywhere across all displays
+                                                    // Dock-only by default; "free" wanders over your windows.
+                                                    // Always fully on-screen so he can't get lost off-edge.
                                                     let s = seed_now();
-                                                    let lo = world_min_x + 16;
-                                                    let hi = (world_max_x - ww - 16).max(lo);
-                                                    let tx = rnd(s, lo, hi);
-                                                    let mut ty = screen.1 - wh - 28;
-                                                    for &(mx, my, mw, mh) in &mons {
-                                                        if tx >= mx && tx < mx + mw { ty = my + mh - wh - 28; break; }
-                                                    }
-                                                    roam_goal = Some((tx, ty));
+                                                    let hix = (screen.0 - ww - 16).max(16);
+                                                    let ty = if free_roam {
+                                                        rnd(s ^ 0x9E37_79B9, 40, (screen.1 - wh - 16).max(40))
+                                                    } else {
+                                                        screen.1 - wh - 28
+                                                    };
+                                                    roam_goal = Some((rnd(s, 16, hix), ty));
                                                 }
                                             }
                                             Some((gx, gy)) => {

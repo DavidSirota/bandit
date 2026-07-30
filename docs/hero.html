@@ -1,0 +1,78 @@
+<!doctype html>
+<meta charset="utf-8" />
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { background: #07080c; display: grid; place-items: center; padding: 30px;
+    font: 14px/1.5 "SF Mono", ui-monospace, Menlo, monospace; }
+  .card {
+    width: 1080px; border-radius: 22px; padding: 22px 24px 20px;
+    background:
+      radial-gradient(120% 90% at 85% -10%, rgba(230,162,74,.12), transparent 55%),
+      linear-gradient(180deg, #14161d, #0d0f15);
+    border: 1px solid rgba(255,255,255,.08);
+    box-shadow: 0 40px 90px -30px #000;
+    color: #e9e6df;
+  }
+  .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .brand { font: 700 22px/1 -apple-system, system-ui, sans-serif; letter-spacing: -.01em; }
+  .brand span { color: #8b8f9c; font-weight: 500; font-size: 15px; }
+  .status { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #c9c4ba;
+    background: rgba(230,162,74,.12); border: 1px solid rgba(230,162,74,.3); padding: 6px 12px; border-radius: 999px; }
+  .status .dot { width: 8px; height: 8px; border-radius: 50%; background: #e6a24a; box-shadow: 0 0 10px #e6a24a; }
+
+  .term { position: relative; border-radius: 15px; overflow: hidden;
+    background: #0a0c11; border: 1px solid rgba(255,255,255,.07); }
+  .tbar { display: flex; align-items: center; gap: 8px; padding: 11px 14px; background: #10131a;
+    border-bottom: 1px solid rgba(255,255,255,.06); font-size: 12px; color: #6b7180; }
+  .tbar .d { width: 11px; height: 11px; border-radius: 50%; }
+  .d.r { background: #ff5f56; } .d.y { background: #febc2e; } .d.g { background: #27c93f; }
+  .tbar .title { margin-left: 8px; color: #7a8090; }
+  .tbar .watch { margin-left: auto; color: #6b7180; }
+  .tbar .watch b { color: #e6a24a; }
+
+  .body { position: relative; padding: 18px 20px 16px; min-height: 300px; }
+  .line { white-space: pre; color: #cdd2dd; padding: 1px 0; }
+  .line.dim { color: #565c6b; }
+  .ind { padding-left: 22px; color: #9aa0ac; }
+  .ind2 { padding-left: 40px; }
+  .p { color: #e6a24a; font-weight: 700; }
+  .path { color: #6ea8fe; }
+  .add { color: #56d364; }
+  .ok { color: #56d364; } .run { color: #e6a24a; }
+  .subs { color: #b48ef0; }
+
+  .pet { position: absolute; right: 34px; bottom: 30px; width: 150px; filter: drop-shadow(0 18px 22px rgba(0,0,0,.55)); }
+  .petlabel { position: absolute; right: 40px; bottom: 8px; font-size: 12px; color: #e6a24a; }
+  .petlabel::before { content: "● "; }
+
+  .foot { padding: 12px 20px 14px; font-size: 12.5px; color: #7a8090;
+    border-top: 1px solid rgba(255,255,255,.06); }
+  .foot b { color: #a9aebb; }
+  .lock { color: #56d364; }
+</style>
+<div class="card">
+  <div class="head">
+    <div class="brand">🦝 Bandit <span>· lives on your Dock</span></div>
+    <div class="status"><span class="dot"></span>working · editing files</div>
+  </div>
+  <div class="term">
+    <div class="tbar">
+      <span class="d r"></span><span class="d y"></span><span class="d g"></span>
+      <span class="title">coding session · log</span>
+      <span class="watch"><b>●</b> bandit watching</span>
+    </div>
+    <div class="body">
+      <div class="line dim">~/projects/app</div>
+      <div class="line"><span class="p">›</span> refactor auth to use jose v5</div>
+      <div class="line ind">reading <span class="path">src/auth/middleware.ts</span></div>
+      <div class="line ind">reading <span class="path">src/auth/jwt.ts</span></div>
+      <div class="line ind"><span class="ok">●</span> Edit <span class="path">src/auth/middleware.ts</span></div>
+      <div class="line ind2"><span class="add">+ import { jwtVerify } from "jose"</span></div>
+      <div class="line ind"><span class="run">●</span> running tests…  <span class="dim">14 passed</span></div>
+      <div class="line ind"><span class="subs">●</span> Task — 3 subagents running</div>
+      <img class="pet" src="./img/bandit-happy.png" alt="Bandit" />
+      <div class="petlabel">working</div>
+    </div>
+    <div class="foot">Every tool call moves Bandit in real time — <b>and he never touches the network.</b> <span class="lock">🔒 kernel-sandboxed</span></div>
+  </div>
+</div>

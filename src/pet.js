@@ -21,7 +21,7 @@
   // ---- persisted pet ---------------------------------------------------
   const DEFAULT = {
     name: "Bandit", born: Date.now(),
-    bodyColor: "#2a2d38", hairColor: "#7bbf6a", scale: 1, theme: "os", chatter: true, coatAuto: true, dnd: false,
+    bodyColor: "#2a2d38", hairColor: "#7bbf6a", scale: 1, theme: "os", chatter: true, coatAuto: true, dnd: false, roamMode: "dock",
     hunger: 20, thirst: 20, hair: 12, happy: 82,
     lastTick: Date.now(),
     stats: { feeds: 0, waters: 0, pets: 0, lateNights: 0, lastLateNight: 0 },
@@ -39,7 +39,7 @@
     pet.happy = Math.max(15, pet.happy - awayH * 3);
     pet.lastTick = Date.now();
     $("bodyc").value = coatColor(); $("hairc").value = pet.hairColor;
-    applyTheme(); updateChatter(); updateDnd();
+    applyTheme(); updateChatter(); updateDnd(); updateRoamSeg();
   }
   function applyTheme() {
     if (pet.theme && pet.theme !== "os") document.body.dataset.theme = pet.theme;
@@ -290,6 +290,8 @@
   $("chatterBtn").addEventListener("click", (e) => { e.stopPropagation(); pet.chatter = pet.chatter === false; updateChatter(); savePet(); if (pet.chatter === false) bubbleEl.classList.add("hidden"); });
   function updateDnd() { const btn = $("dndBtn"); if (!btn) return; btn.textContent = pet.dnd ? "on" : "off"; btn.classList.toggle("on", !!pet.dnd); }
   $("dndBtn").addEventListener("click", (e) => { e.stopPropagation(); pet.dnd = !pet.dnd; updateDnd(); savePet(); if (pet.dnd) bubbleEl.classList.add("hidden"); });
+  function updateRoamSeg() { document.querySelectorAll("#roamSeg button").forEach((b) => b.classList.toggle("on", b.dataset.roam === (pet.roamMode || "dock"))); }
+  document.querySelectorAll("#roamSeg button").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); pet.roamMode = b.dataset.roam; updateRoamSeg(); savePet(); }));
   function syncUI() {
     menuEl.classList.toggle("hidden", !(ctx.hovering && !editMode));
     if (!ctx.hovering && editMode) { editEl.classList.add("hidden"); editMode = false; }

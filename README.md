@@ -24,9 +24,13 @@ curl -fsSL https://raw.githubusercontent.com/DavidSirota/bandit/main/install.sh 
 
 <sub>No tools needed. Downloads the app, drops it on your Dock, and starts it — sandboxed and offline.</sub>
 
-<br/>
+<br/><br/>
 
-<img src="docs/img/bandit-happy.png" width="150" alt="happy" /> <img src="docs/img/bandit.png" width="150" alt="idle" /> <img src="docs/img/bandit-night.png" width="150" alt="nocturnal" />
+<img src="docs/img/hero.png" width="900" alt="Bandit reacting to a coding session in real time" />
+
+<br/><br/>
+
+<img src="docs/img/bandit-happy.png" width="140" alt="happy" /> <img src="docs/img/bandit.png" width="140" alt="idle" /> <img src="docs/img/bandit-night.png" width="140" alt="nocturnal" />
 
 </div>
 
