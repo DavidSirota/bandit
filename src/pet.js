@@ -21,7 +21,7 @@
   // ---- persisted pet ---------------------------------------------------
   const DEFAULT = {
     name: "Bandit", born: Date.now(),
-    bodyColor: "#2a2d38", hairColor: "#7bbf6a", scale: 1, theme: "os", chatter: true, coatAuto: true,
+    bodyColor: "#2a2d38", hairColor: "#7bbf6a", scale: 1, theme: "os", chatter: true, coatAuto: true, dnd: false,
     hunger: 20, thirst: 20, hair: 12, happy: 82,
     lastTick: Date.now(),
     stats: { feeds: 0, waters: 0, pets: 0, lateNights: 0, lastLateNight: 0 },
@@ -39,7 +39,7 @@
     pet.happy = Math.max(15, pet.happy - awayH * 3);
     pet.lastTick = Date.now();
     $("bodyc").value = coatColor(); $("hairc").value = pet.hairColor;
-    applyTheme(); updateChatter();
+    applyTheme(); updateChatter(); updateDnd();
   }
   function applyTheme() {
     if (pet.theme && pet.theme !== "os") document.body.dataset.theme = pet.theme;
@@ -114,6 +114,7 @@
   function flash(m, ms, kind) { transient.m = m; transient.until = nowp() + ms; transient.kind = kind || ""; }
   function isLate() { return ctx.hour < 5 || ctx.hour >= 23; }
   function mood() {
+    if (pet.dnd) return "nap";
     if (transient.until > nowp()) return transient.m;
     if (ctx.batt <= 10 && !ctx.charging) return "dying";
     if (ctx.cpu > 0.85) return "frazzled";
@@ -121,6 +122,7 @@
     if (ctx.charging && ctx.batt < 95) return "charging";
     if (ctx.roam === "nap") return "nap";
     if (isLate()) return "nocturnal";
+    if (ctx.task === "groove") return "groove";
     if (ctx.task === "working" || ctx.task === "thinking") return "watching";
     const bad = Math.max(pet.hunger, pet.thirst);
     if (bad > 78 || pet.happy < 25) return "sad";
@@ -178,7 +180,7 @@
   let sN = 0.37;
   function seed() { sN = ((sN * 9301 + 49297) % 233280) / 233280; return sN; }
   let bubbleUntil = 0;
-  function say(text, ms = 3200) { if (!text || pet.chatter === false) return; bubbleEl.textContent = text; bubbleEl.classList.remove("hidden"); bubbleUntil = nowp() + ms; }
+  function say(text, ms = 3200) { if (!text || pet.chatter === false || pet.dnd) return; bubbleEl.textContent = text; bubbleEl.classList.remove("hidden"); bubbleUntil = nowp() + ms; }
   let appSwitches = [];
   function onAppChange() {
     const t = nowp();
@@ -187,8 +189,10 @@
     if (seed() < 0.55) say(pick(L[ctx.app] || L.ambient));
   }
   function reactTask() {
+    if (pet.dnd) return;
     if (ctx.task === "celebrate") { flash("great", 1500, "jump"); say(pick(["nailed it!", "yesss", "we did it", "🎉"])); }
     else if (ctx.task === "alert") { flash("watching", 3000, ""); say(pick(["it needs you", "psst, your turn"])); }
+    else if (ctx.task === "reviewing") { say(pick(["hmm, checking this...", "reviewing 👀", "one sec"])); }
   }
   const daysAlive = () => Math.floor((Date.now() - pet.born) / 86400000);
   function hourBucket() { const h = ctx.hour; if (h >= 5 && h < 12) return 0; if (h < 18) return 1; if (h < 23) return 2; return 3; }
@@ -258,6 +262,14 @@
 
   let editMode = false;
   menuEl.querySelectorAll(".mbtn").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); action(b.dataset.act); }));
+  // click reactions on his body: double-click = poke, rapid clicks = flail
+  let clickTimes = [];
+  canvas.addEventListener("click", () => {
+    if (pet.dnd) return;
+    const t = nowp(); clickTimes.push(t); clickTimes = clickTimes.filter((x) => t - x < 900);
+    if (clickTimes.length >= 4) { clickTimes = []; flash("flail", 1200, "flail"); say(pick(["AAAH", "hey hey HEY", "too much!!"]), 1100); }
+    else if (clickTimes.length === 2) { flash("poke", 750, "poke"); pet.happy = Math.min(100, pet.happy + 3); say(pick(["boop!", "hey!", "eek", "!"]), 900); }
+  });
   // coat follows the theme (light coat in light mode, dark in dark) until you pick a custom color
   const LIGHT_COAT = "#8b90a0", DARK_COAT = "#2a2d38";
   function resolvedTheme() {
@@ -276,6 +288,8 @@
   );
   function updateChatter() { const btn = $("chatterBtn"); if (!btn) return; btn.textContent = pet.chatter === false ? "off" : "on"; btn.classList.toggle("on", pet.chatter !== false); }
   $("chatterBtn").addEventListener("click", (e) => { e.stopPropagation(); pet.chatter = pet.chatter === false; updateChatter(); savePet(); if (pet.chatter === false) bubbleEl.classList.add("hidden"); });
+  function updateDnd() { const btn = $("dndBtn"); if (!btn) return; btn.textContent = pet.dnd ? "on" : "off"; btn.classList.toggle("on", !!pet.dnd); }
+  $("dndBtn").addEventListener("click", (e) => { e.stopPropagation(); pet.dnd = !pet.dnd; updateDnd(); savePet(); if (pet.dnd) bubbleEl.classList.add("hidden"); });
   function syncUI() {
     menuEl.classList.toggle("hidden", !(ctx.hovering && !editMode));
     if (!ctx.hovering && editMode) { editEl.classList.add("hidden"); editMode = false; }
@@ -351,6 +365,9 @@
     else if (m === "dying") { bob = Math.sin(t / 1400) * 0.8; lift = -5; openL = openR = 0.45; }
     else if (m === "charging") { bob = Math.sin(t / 420) * 2.6; style = "happy"; }
     else if (m === "nap") { bob = Math.sin(t / 1200) * 0.9; openL = openR = 0.1; }
+    else if (m === "poke") { const p = Math.min(1, (t - (transient.until - 700)) / 700); lift = Math.sin(p * Math.PI) * 18; wide = 0.35; }
+    else if (m === "flail") { bob = Math.sin(t / 50) * 3; wide = 0.4; }
+    else if (m === "groove") { bob = Math.abs(Math.sin(t / 210)) * 6; wide = 0.1; }
     else if (m === "celebrate") { const p = Math.min(1, (t - (transient.until - 1500)) / 1500); lift = Math.abs(Math.sin(p * Math.PI * 2)) * 40 * (1 - p * 0.3); style = "happy"; }
     if (transient.kind === "eat" || transient.kind === "drink" || transient.kind === "pet") style = "happy";
 
@@ -368,6 +385,8 @@
     tilt += v * 0.25;
     if (ctx.roam === "climb-l") tilt += 0.4;
     else if (ctx.roam === "climb-r") tilt -= 0.4;
+    if (m === "flail") tilt += Math.sin(t / 45) * 0.32;
+    else if (m === "groove") tilt = Math.sin(t / 210) * 0.14;
     if (Math.abs(ctx.vel.x) > 1.2 && t - lastFling > 1500) { lastFling = t; say(pick(["wheee", "wa-hey!", "put me down 😅"]), 1400); }
 
     if (style === "normal" && !mouthOpen) { if (t > blinkAt) { const bt = t - blinkAt; if (bt < 130) openL = openR = 1 - Math.sin((bt / 130) * Math.PI); else blinkAt = t + 1900 + seed() * 3400; } }
@@ -460,6 +479,7 @@
     if (m === "charging") bolt(cx + 30, cy - 26);
     if (m === "dying") { g.save(); g.globalAlpha = 0.5 + Math.sin(t / 300) * 0.3; bolt(cx + 28, cy - 24, "#e06a6a"); g.restore(); }
     if ((m === "nocturnal") && seed() > 0.7) star(cx - 30 + seed() * 60, cy - 40 - seed() * 20);
+    if (m === "groove") { const nb = (t / 500) % 1; g.save(); g.globalAlpha = 0.85 * (1 - nb * 0.5); g.fillStyle = "#e6a24a"; g.font = "14px system-ui, sans-serif"; g.textAlign = "center"; g.fillText("♪", cx + 30, cy - 28 - nb * 16); g.restore(); }
     if (transient.kind === "pet" && t < transient.until) heart(cx, cy - 44);
     if (m === "sad" || m === "hangry") { g.save(); g.globalAlpha = 0.7; sweat(cx + 24, cy - 6); g.restore(); }
     if (m === "nap") { const zt = (t / 2600) % 1; g.save(); g.globalAlpha = 0.85 * (1 - zt); g.fillStyle = "rgba(244,239,230,.9)"; g.font = `${10 + zt * 8}px system-ui, sans-serif`; g.textAlign = "center"; g.fillText("z", cx + 22 + zt * 10, cy - 28 - zt * 24); g.restore(); }
