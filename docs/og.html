@@ -1,0 +1,43 @@
+<!doctype html>
+<meta charset="utf-8" />
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { width: 1280px; height: 640px; overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
+  .og {
+    width: 1280px; height: 640px; position: relative; display: flex; align-items: center;
+    padding: 0 72px; color: #f2efe8;
+    background:
+      radial-gradient(90% 120% at 88% 30%, rgba(230,162,74,.20), transparent 55%),
+      radial-gradient(80% 90% at 5% 100%, rgba(120,132,168,.12), transparent 60%),
+      linear-gradient(160deg, #12141c 0%, #0c0e14 100%);
+  }
+  .left { width: 640px; }
+  .kicker { display: inline-flex; align-items: center; gap: 10px; color: #f0bd77;
+    font-size: 20px; font-weight: 600; letter-spacing: .02em; }
+  .kicker .rule { width: 30px; height: 2px; background: #e6a24a; border-radius: 2px; }
+  h1 { font-size: 118px; line-height: .9; letter-spacing: -.04em; margin: 22px 0 0; font-weight: 800; }
+  h1 .p { color: #e6a24a; }
+  .sub { font-size: 27px; line-height: 1.35; color: #b9b6ad; margin-top: 26px; max-width: 600px; }
+  .sub b { color: #f2efe8; font-weight: 600; }
+  .pill { display: inline-flex; align-items: center; gap: 10px; margin-top: 34px;
+    font-size: 19px; color: #cfe9cf; background: rgba(63,185,80,.12);
+    border: 1px solid rgba(63,185,80,.35); padding: 11px 20px; border-radius: 999px; }
+  .pill .lock { font-size: 18px; }
+  .right { position: absolute; right: 70px; top: 50%; transform: translateY(-50%); }
+  .right img { width: 420px; border-radius: 32px;
+    box-shadow: 0 40px 60px -20px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.07),
+      inset 0 0 0 1px rgba(255,255,255,.04); }
+</style>
+<div class="og">
+  <div class="left">
+    <span class="kicker"><span class="rule"></span>a desktop pet for your Mac</span>
+    <h1>Bandit<span class="p">.</span></h1>
+    <div class="sub">A raccoon who lives on your Dock and reacts to your day — your apps, battery, the time of night, and your <b>coding agent</b>.</div>
+    <div class="pill"><span class="lock">🔒</span> never touches the network · kernel-sandboxed</div>
+  </div>
+  <div class="right">
+    <div class="shadow"></div>
+    <img src="./img/bandit.png" alt="Bandit" />
+  </div>
+</div>
