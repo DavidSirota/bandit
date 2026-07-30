@@ -102,29 +102,26 @@ sh build.sh
 
 ## In your coding session
 
-Bandit can sit in on a [Claude Code](https://claude.com/claude-code) session and
-handle permission prompts for you. When the agent wants to **run a command** or
-**edit a file**, a card pops up on Bandit:
+Wire Bandit into [Claude Code](https://claude.com/claude-code) and he handles
+permission prompts for you. When the agent wants to run a command or edit a
+file, a card pops up on him:
 
 > **Claude wants to run** · `Bash`
 > `rm -rf build/ && npm run deploy`
 > **[ Deny ]  [ Allow ]**
 
-Click **Allow** and it runs; click **Deny** and it's blocked — no switching to the
-terminal. He only steps in for the tools that actually change things (Bash,
-Write, Edit), never for reads, and if you don't answer he quietly hands the
-prompt back to the terminal, so nothing ever hangs.
+**Allow** runs it, **Deny** blocks it — no jumping to the terminal. He only asks
+for the tools that change things (Bash, Write, Edit), never reads, and if you
+ignore him he hands the prompt back to the terminal so nothing hangs. It's all
+local files — no server, no network.
 
-It's all local files — a `PreToolUse` hook writes the request to `~/.deskpet/`
-and waits for your click. No server, no network, same privacy guarantee.
-
-**Turn it on** (needs [jq](https://jqlang.github.io/jq/): `brew install jq`):
+**Turn it on** (needs `jq` → `brew install jq`):
 
 ```sh
 sh ~/Applications/Bandit.app/Contents/Resources/hooks/install-hook.sh
 ```
 
-Then start a fresh Claude Code session. To turn it off, delete the `PreToolUse`
+Start a fresh Claude Code session and he's in. **Off:** delete the `PreToolUse`
 entry in `~/.claude/settings.json`.
 
 ## Built with
