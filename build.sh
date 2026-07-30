@@ -5,8 +5,8 @@
 set -e
 D="$(cd "$(dirname "$0")" && pwd)"
 UID_="$(id -u)"
-LABEL="app.deskpet"
-APP="$HOME/Applications/deskpet.app"
+LABEL="app.bandit"
+APP="$HOME/Applications/Bandit.app"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 
 echo "==> release build"
@@ -48,9 +48,12 @@ PLIST
 
 echo "==> launch agent (sandboxed, deny-network, start at login)"
 mkdir -p "$HOME/Library/LaunchAgents"
-# clean up any prior install (including the pre-1.0 personal identifier)
-launchctl bootout "gui/$UID_/com.dsirota.deskpet" 2>/dev/null || true
-rm -f "$HOME/Library/LaunchAgents/com.dsirota.deskpet.plist"
+# clean up any prior install (older identifiers / bundle names)
+for old in com.dsirota.deskpet app.deskpet; do
+  launchctl bootout "gui/$UID_/$old" 2>/dev/null || true
+  rm -f "$HOME/Library/LaunchAgents/$old.plist"
+done
+rm -rf "$HOME/Applications/deskpet.app"
 cat > "$PLIST" <<PL
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

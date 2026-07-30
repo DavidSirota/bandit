@@ -258,12 +258,27 @@ fn main() {
                     let mut roam_goal: Option<(i32, i32)> = None;
                     let mut nap_until: Option<Instant> = None;
                     let mut screen = (2560i32, 1440i32);
+                    // every display as (x, y, w, h) in the global space, so he can
+                    // pace the Dock across monitors and step to each screen's bottom
+                    let mut mons: Vec<(i32, i32, i32, i32)> = Vec::new();
                     if let Some(win) = h.get_webview_window("pet") {
                         if let Ok(Some(mon)) = win.primary_monitor() {
                             let s = mon.size();
                             screen = (s.width as i32, s.height as i32);
                         }
+                        if let Ok(list) = win.available_monitors() {
+                            for m in list {
+                                let p = m.position();
+                                let z = m.size();
+                                mons.push((p.x, p.y, z.width as i32, z.height as i32));
+                            }
+                        }
                     }
+                    if mons.is_empty() {
+                        mons.push((0, 0, screen.0, screen.1));
+                    }
+                    let world_min_x = mons.iter().map(|m| m.0).min().unwrap_or(0);
+                    let world_max_x = mons.iter().map(|m| m.0 + m.2).max().unwrap_or(screen.0);
                     loop {
                         if last_app.elapsed() > Duration::from_millis(1500) {
                             let (c, n) = front_app();
@@ -317,16 +332,16 @@ fn main() {
                                         match roam_goal {
                                             None => {
                                                 if Instant::now() > next_roam {
+                                                    // pick a new spot along the Dock, anywhere across all displays
                                                     let s = seed_now();
-                                                    let maxx = (screen.0 - ww - 16).max(16);
-                                                    let midy_hi = (screen.1 - wh - 140).max(80);
-                                                    // weight the Dock, then the side walls, then a menu-bar nap
-                                                    roam_goal = Some(match s % 6 {
-                                                        0 | 1 | 2 => (rnd(s >> 3, 16, maxx), screen.1 - wh - 28),
-                                                        3 => (0, rnd(s >> 3, 60, midy_hi)),
-                                                        4 => (screen.0 - ww, rnd(s >> 3, 60, midy_hi)),
-                                                        _ => (rnd(s >> 3, 40, maxx), 2),
-                                                    });
+                                                    let lo = world_min_x + 16;
+                                                    let hi = (world_max_x - ww - 16).max(lo);
+                                                    let tx = rnd(s, lo, hi);
+                                                    let mut ty = screen.1 - wh - 28;
+                                                    for &(mx, my, mw, mh) in &mons {
+                                                        if tx >= mx && tx < mx + mw { ty = my + mh - wh - 28; break; }
+                                                    }
+                                                    roam_goal = Some((tx, ty));
                                                 }
                                             }
                                             Some((gx, gy)) => {
@@ -349,17 +364,7 @@ fn main() {
                                         }
                                     }
 
-                                    // tell the frontend how to pose while roaming
-                                    let near_top = wp.y < 60;
-                                    roam_pose = if nap_until.is_some() || (near_top && roam_goal.is_none()) {
-                                        "nap"
-                                    } else if wp.x < 60 {
-                                        "climb-l"
-                                    } else if wp.x > screen.0 - ww - 60 {
-                                        "climb-r"
-                                    } else {
-                                        ""
-                                    };
+                                    let _ = &nap_until; // (menu-bar nap disabled; Dock pacing only)
                                 }
                                 let payload = serde_json::json!({
                                     "cursorX": cp.x, "cursorY": cp.y,
