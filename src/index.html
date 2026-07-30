@@ -13,6 +13,17 @@
       <!-- speech bubble -->
       <div id="bubble" class="hidden"></div>
 
+      <!-- permission card (Claude Code asks; you answer from here) -->
+      <div id="perm" class="hidden">
+        <div class="perm-head">Claude wants to run</div>
+        <div class="perm-tool"><span id="permTool">Bash</span></div>
+        <div class="perm-detail" id="permDetail"></div>
+        <div class="perm-actions">
+          <button id="permDeny" class="perm-deny">Deny</button>
+          <button id="permAllow" class="perm-allow">Allow</button>
+        </div>
+      </div>
+
       <!-- hover menu -->
       <div id="menu" class="hidden">
         <button class="mbtn" data-act="food" title="Feed">

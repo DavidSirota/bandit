@@ -72,6 +72,20 @@ fn save_pet(json: String) {
     let _ = fs::write(pet_path(), json);
 }
 
+// ---- permission bubble IPC (all local files; the hook waits on the decision) --
+fn perm_path() -> PathBuf {
+    deskpet_dir().join("permission")
+}
+fn perm_decision_path() -> PathBuf {
+    deskpet_dir().join("permission-decision")
+}
+#[tauri::command]
+fn resolve_permission(id: String, decision: String) {
+    let _ = fs::create_dir_all(deskpet_dir());
+    let _ = fs::write(perm_decision_path(), format!("{}|{}", id, decision));
+    let _ = fs::remove_file(perm_path()); // hide the bubble immediately
+}
+
 // ---- frontmost app -> coarse activity category (local, no permissions) --------
 fn front_app() -> (String, String) {
     let out = Command::new("sh")
@@ -178,7 +192,7 @@ fn main() {
     ensure_sandboxed();
 
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![load_pet, save_pet])
+        .invoke_handler(tauri::generate_handler![load_pet, save_pet, resolve_permission])
         .setup(|app| {
             let _ = fs::create_dir_all(deskpet_dir());
             if read_trim(state_path()).is_empty() {
@@ -264,6 +278,7 @@ fn main() {
                     let mut roam_goal: Option<(i32, i32)> = None;
                     let mut nap_until: Option<Instant> = None;
                     let mut free_roam = roam_is_free();
+                    let mut last_perm = String::new();
                     let mut screen = (2560i32, 1440i32);
                     // every display as (x, y, w, h) in the global space, so he can
                     // pace the Dock across monitors and step to each screen's bottom
@@ -301,6 +316,16 @@ fn main() {
                             free_roam = roam_is_free();
                             last_sys = Instant::now();
                         }
+                        // a pending permission request from the Claude Code hook.
+                        // when one is up, the bubble takes over: he holds still and the
+                        // window goes interactive so the Allow/Deny buttons are clickable.
+                        let perm = fs::read_to_string(perm_path()).unwrap_or_default();
+                        if perm != last_perm {
+                            last_perm = perm.clone();
+                            let _ = h.emit("permission", perm.clone());
+                        }
+                        let perm_pending = !perm.trim().is_empty();
+
                         if let Some(window) = h.get_webview_window("pet") {
                             let scale = window.scale_factor().unwrap_or(1.0);
                             if let (Ok(wp), Ok(cp)) = (window.outer_position(), h.cursor_position()) {
@@ -311,7 +336,7 @@ fn main() {
                                 if over != hovering {
                                     hovering = over;
                                 }
-                                let want_ignore = !hovering;
+                                let want_ignore = !(hovering || perm_pending);
                                 if want_ignore != ignoring {
                                     let _ = window.set_ignore_cursor_events(want_ignore);
                                     ignoring = want_ignore;
@@ -319,7 +344,7 @@ fn main() {
 
                                 // scurry home: if abandoned floating mid-screen, scoot to a corner
                                 let mut roam_pose = "";
-                                if hovering {
+                                if hovering || perm_pending {
                                     last_interact = Instant::now();
                                     roam_goal = None;
                                     nap_until = None;

@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# deskpet-permission — a Claude Code PreToolUse hook that hands the
+# allow/deny decision to Bandit's on-screen bubble.
+#
+# Flow: write the pending tool call to ~/.deskpet/permission, block until
+# Bandit writes ~/.deskpet/permission-decision, then tell Claude Code to
+# allow or deny. Everything is local files — no network, no server.
+#
+# It never hangs Claude: if Bandit isn't running, or you don't answer in
+# time, it falls through to Claude Code's normal terminal prompt.
+#
+# Requires: jq (brew install jq). Without it, the hook passes through.
+
+set -euo pipefail
+
+DIR="$HOME/.deskpet"
+REQ="$DIR/permission"
+DEC="$DIR/permission-decision"
+TIMEOUT="${DESKPET_PERM_TIMEOUT:-30}"   # seconds, then hand back to the terminal
+
+input="$(cat)"
+
+# No jq, or Bandit isn't on screen? Don't gate anything — pass straight through.
+command -v jq >/dev/null 2>&1 || exit 0
+pgrep -qx deskpet || exit 0
+
+tool="$(printf '%s' "$input" | jq -r '.tool_name // empty')"
+
+# A short, human line for the card: the command, or the file being touched.
+case "$tool" in
+  Bash) detail="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')" ;;
+  *)    detail="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty')" ;;
+esac
+detail="${detail:0:200}"
+
+mkdir -p "$DIR"
+id="$$-$(date +%s)"
+rm -f "$DEC"
+jq -cn --arg id "$id" --arg tool "$tool" --arg detail "$detail" \
+  '{id:$id, tool:$tool, detail:$detail}' > "$REQ"
+
+# Wait for Bandit. Poll ~4x/sec so a click feels instant.
+max=$(( TIMEOUT * 4 ))
+i=0
+while [ "$i" -lt "$max" ]; do
+  if [ -f "$DEC" ]; then
+    line="$(cat "$DEC" 2>/dev/null || true)"
+    did="${line%%|*}"
+    ans="${line#*|}"
+    if [ "$did" = "$id" ]; then
+      rm -f "$DEC" "$REQ"
+      case "$ans" in
+        allow)
+          echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"Approved from Bandit"}}'
+          exit 0 ;;
+        deny)
+          echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Denied from Bandit"}}'
+          exit 0 ;;
+      esac
+    fi
+  fi
+  sleep 0.25
+  i=$(( i + 1 ))
+done
+
+# Timed out — clear the bubble and let Claude Code prompt in the terminal.
+rm -f "$REQ"
+exit 0

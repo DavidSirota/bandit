@@ -16,6 +16,7 @@
   const centerY = GROUND - BH / 2;
   const $ = (id) => document.getElementById(id);
   const bubbleEl = $("bubble"), menuEl = $("menu"), editEl = $("edit");
+  const permEl = $("perm"), permToolEl = $("permTool"), permDetailEl = $("permDetail");
   const nowp = () => performance.now();
 
   // ---- persisted pet ---------------------------------------------------
@@ -82,6 +83,7 @@
       prevWin = p.winX; prevWt = tn;
     });
     window.__TAURI__.event.listen("task", (e) => { ctx.task = String(e.payload || ""); reactTask(); });
+    window.__TAURI__.event.listen("permission", (e) => showPerm(e.payload));
   } else {
     window.addEventListener("mousemove", (e) => {
       const r = canvas.getBoundingClientRect();
@@ -101,6 +103,7 @@
       if (e.key === "y") idle.fire("yawn");
       if (e.key === "o") toggleFocus();
       if (e.key === "r") ctx.roam = ({ "": "climb-l", "climb-l": "climb-r", "climb-r": "nap", "nap": "" })[ctx.roam] ?? "";
+      if (e.key === "g") showPerm(permActive ? "" : JSON.stringify({ id: "test", tool: "Bash", detail: "rm -rf build/ && npm run deploy" }));
     });
   }
   function setLook(px, py) {
@@ -292,8 +295,38 @@
   $("dndBtn").addEventListener("click", (e) => { e.stopPropagation(); pet.dnd = !pet.dnd; updateDnd(); savePet(); if (pet.dnd) bubbleEl.classList.add("hidden"); });
   function updateRoamSeg() { document.querySelectorAll("#roamSeg button").forEach((b) => b.classList.toggle("on", b.dataset.roam === (pet.roamMode || "dock"))); }
   document.querySelectorAll("#roamSeg button").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); pet.roamMode = b.dataset.roam; updateRoamSeg(); savePet(); }));
+
+  // ---- permission bubble: Claude Code asks, you answer from Bandit ---------
+  let permActive = false, permId = null;
+  function showPerm(raw) {
+    let req = null;
+    try { req = raw ? JSON.parse(raw) : null; } catch (_) { req = null; }
+    if (!req || !req.tool) { hidePerm(); return; }
+    permId = req.id || "";
+    permToolEl.textContent = req.tool;
+    permDetailEl.textContent = req.detail || "";
+    permEl.classList.remove("hidden");
+    permActive = true;
+    menuEl.classList.add("hidden");
+    editEl.classList.add("hidden"); editMode = false;
+    flash("watching", 60000, "");   // attentive while he waits on you
+    say(pick(["your call?", "run this?", "want me to allow it?"]), 4000);
+  }
+  function hidePerm() {
+    permActive = false; permId = null;
+    permEl.classList.add("hidden");
+    if (transient.m === "watching") transient.until = 0;   // release the attentive hold
+  }
+  function answerPerm(decision) {
+    if (permId != null && invoke) invoke("resolve_permission", { id: String(permId), decision });
+    if (decision === "allow") { flash("great", 1400, "jump"); say(pick(["on it", "go go go"])); }
+    else { flash("meh", 1200, ""); say(pick(["skipped it", "nope, blocked"])); }
+    hidePerm();
+  }
+  $("permAllow").addEventListener("click", (e) => { e.stopPropagation(); answerPerm("allow"); });
+  $("permDeny").addEventListener("click", (e) => { e.stopPropagation(); answerPerm("deny"); });
   function syncUI() {
-    menuEl.classList.toggle("hidden", !(ctx.hovering && !editMode));
+    menuEl.classList.toggle("hidden", !(ctx.hovering && !editMode && !permActive));
     if (!ctx.hovering && editMode) { editEl.classList.add("hidden"); editMode = false; }
     if (nowp() > bubbleUntil) bubbleEl.classList.add("hidden");
   }

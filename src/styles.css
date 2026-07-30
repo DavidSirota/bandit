@@ -41,6 +41,64 @@ body[data-theme="light"] {
 #pet { position: absolute; inset: 0; width: 280px; height: 340px; }
 .hidden { display: none !important; }
 
+/* ---- permission card: Claude asks, you answer from Bandit ---- */
+#perm {
+  position: absolute;
+  left: 50%;
+  top: 40px;
+  transform: translateX(-50%);
+  width: 232px;
+  box-sizing: border-box;
+  padding: 12px 13px 11px;
+  background: var(--ui-bg);
+  color: var(--ui-fg);
+  border: 1.5px solid var(--ui-border);
+  border-radius: 14px;
+  box-shadow: 0 14px 30px -10px var(--ui-shadow);
+  backdrop-filter: blur(8px);
+  -webkit-app-region: no-drag;
+  z-index: 40;
+  animation: perm-pop 0.16s ease-out;
+}
+@keyframes perm-pop {
+  from { opacity: 0; transform: translateX(-50%) translateY(4px) scale(0.96); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+.perm-head {
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+.perm-tool { margin-top: 3px; font-size: 15px; font-weight: 700; }
+.perm-detail {
+  margin-top: 5px;
+  font: 11px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--ui-fg);
+  opacity: 0.82;
+  max-height: 54px;
+  overflow: hidden;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.perm-detail:empty { display: none; }
+.perm-actions { display: flex; gap: 7px; margin-top: 11px; }
+.perm-actions button {
+  flex: 1;
+  padding: 7px 0;
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 650;
+  cursor: pointer;
+  border: 1.5px solid var(--ui-border);
+  transition: filter 0.12s, transform 0.06s;
+}
+.perm-actions button:active { transform: translateY(1px); }
+.perm-allow { background: #3fb950; border-color: #359042 !important; color: #08240e; }
+.perm-deny { background: transparent; color: var(--ui-fg); }
+.perm-allow:hover { filter: brightness(1.06); }
+.perm-deny:hover { filter: brightness(1.2); background: rgba(127, 127, 127, 0.12); }
+
 /* ---- cartoon speech bubble ---- */
 #bubble {
   position: absolute;

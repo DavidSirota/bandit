@@ -54,6 +54,7 @@ what you're doing.
 - **Care loop** — hover him for **Feed · Water · Pet · Edit**. Meters drift while you're away, so you return to a slightly needy little guy. Gentle by design — he sulks and droops, but never dies. Steady care sprouts a fuller head of grass.
 - **Pomodoro buddy** — a Focus timer with a progress ring around him; he nudges you at break time and calls you back to work.
 - **Reacts to your coding agent** — perks up on a prompt, bustles while tools run, and jumps when a task finishes. Works with anything that can run a hook (Claude Code, etc.) by writing a word to `~/.deskpet/state`.
+- **Approve tool calls from his bubble** — wire him into Claude Code and when the agent wants to run a command or edit a file, Bandit pops an **Allow / Deny** card. You answer from him instead of the terminal. See *In your coding session* below.
 - **Make him yours** — recolor his coat and grass, resize him, pick Light / Dark / OS themes, and toggle his chatter on or off.
 
 He floats over fullscreen apps, sits on your Dock with no app icon of his own,
@@ -98,6 +99,33 @@ sh build.sh
 - **Hover him** → Feed / Water / Pet / Focus / Edit.
 - **Drag his body** to move him anywhere (it sticks across restarts and monitors).
 - **Wire him to your agent:** he watches `~/.deskpet/state` — `printf celebrate > ~/.deskpet/state` makes him jump. Any tool with hooks can drive `idle / working / thinking / celebrate / alert`.
+
+## In your coding session
+
+Bandit can sit in on a [Claude Code](https://claude.com/claude-code) session and
+handle permission prompts for you. When the agent wants to **run a command** or
+**edit a file**, a card pops up on Bandit:
+
+> **Claude wants to run** · `Bash`
+> `rm -rf build/ && npm run deploy`
+> **[ Deny ]  [ Allow ]**
+
+Click **Allow** and it runs; click **Deny** and it's blocked — no switching to the
+terminal. He only steps in for the tools that actually change things (Bash,
+Write, Edit), never for reads, and if you don't answer he quietly hands the
+prompt back to the terminal, so nothing ever hangs.
+
+It's all local files — a `PreToolUse` hook writes the request to `~/.deskpet/`
+and waits for your click. No server, no network, same privacy guarantee.
+
+**Turn it on** (needs [jq](https://jqlang.github.io/jq/): `brew install jq`):
+
+```sh
+sh ~/Applications/Bandit.app/Contents/Resources/hooks/install-hook.sh
+```
+
+Then start a fresh Claude Code session. To turn it off, delete the `PreToolUse`
+entry in `~/.claude/settings.json`.
 
 ## Built with
 

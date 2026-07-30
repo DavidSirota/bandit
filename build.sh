@@ -4,6 +4,9 @@
 # Reproducible: everything here is what makes the security posture real.
 set -e
 D="$(cd "$(dirname "$0")" && pwd)"
+# make sure cargo is on PATH even from a non-login shell
+[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
+command -v cargo >/dev/null 2>&1 || PATH="$HOME/.cargo/bin:$PATH"
 UID_="$(id -u)"
 LABEL="app.bandit"
 APP="$HOME/Applications/Bandit.app"
@@ -28,6 +31,10 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$D/src-tauri/target/release/deskpet" "$APP/Contents/MacOS/deskpet"
 cp "$D/src-tauri/icons/icon.icns" "$APP/Contents/Resources/icon.icns"
 cp "$D/deskpet.sb" "$APP/Contents/Resources/deskpet.sb"
+# ship the Claude Code hook so it can be enabled from the installed app
+mkdir -p "$APP/Contents/Resources/hooks"
+cp "$D/hooks/deskpet-permission" "$D/hooks/install-hook.sh" "$APP/Contents/Resources/hooks/"
+chmod +x "$APP/Contents/Resources/hooks/"*
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
