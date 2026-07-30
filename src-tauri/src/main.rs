@@ -11,8 +11,23 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::{Emitter, Manager, PhysicalPosition};
+
+fn seed_now() -> u32 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.subsec_nanos())
+        .unwrap_or(1)
+        .max(1)
+}
+fn rnd(seed: u32, lo: i32, hi: i32) -> i32 {
+    if hi <= lo {
+        lo
+    } else {
+        lo + (seed % ((hi - lo) as u32)) as i32
+    }
+}
 
 fn deskpet_dir() -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
@@ -180,6 +195,8 @@ fn main() {
                         let behavior: usize = 1 | 16 | 256;
                         unsafe {
                             let _: () = msg_send![ns, setCollectionBehavior: behavior];
+                            // ride above fullscreen apps' content (well above normal + floating)
+                            let _: () = msg_send![ns, setLevel: 100i64];
                         }
                     }
                 }
@@ -237,9 +254,9 @@ fn main() {
                     let mut hovering = false;
                     let mut ignoring = true;
                     let mut last_interact = Instant::now();
-                    let mut next_wander = Instant::now() + Duration::from_secs(12);
-                    let mut target_x: Option<i32> = None;
-                    let mut wander_dir: i32 = 1;
+                    let mut next_roam = Instant::now() + Duration::from_secs(10);
+                    let mut roam_goal: Option<(i32, i32)> = None;
+                    let mut nap_until: Option<Instant> = None;
                     let mut screen = (2560i32, 1440i32);
                     if let Some(win) = h.get_webview_window("pet") {
                         if let Ok(Some(mon)) = win.primary_monitor() {
@@ -278,54 +295,78 @@ fn main() {
                                 }
 
                                 // scurry home: if abandoned floating mid-screen, scoot to a corner
+                                let mut roam_pose = "";
                                 if hovering {
                                     last_interact = Instant::now();
-                                    target_x = None;
+                                    roam_goal = None;
+                                    nap_until = None;
                                 } else {
                                     let (ww, wh) = window
                                         .outer_size()
                                         .map(|s| (s.width as i32, s.height as i32))
                                         .unwrap_or((560, 680));
-                                    let floating = (screen.1 - (wp.y + wh)) > 220;
                                     let idle = last_interact.elapsed() > Duration::from_secs(6);
-                                    if floating && last_interact.elapsed() > Duration::from_secs(8) {
-                                        // scurry home to a bottom corner
-                                        target_x = None;
-                                        let hx = screen.0 - ww - 24;
-                                        let hy = screen.1 - wh - 24;
-                                        let nx = wp.x + (((hx - wp.x) as f64) * 0.18) as i32;
-                                        let ny = wp.y + (((hy - wp.y) as f64) * 0.18) as i32;
-                                        let _ = window.set_position(PhysicalPosition::new(nx, ny));
-                                    } else if !floating && idle {
-                                        // wander: pace slowly back and forth along the Dock
-                                        match target_x {
+
+                                    if let Some(until) = nap_until {
+                                        // napping on the menu bar; wake after a while
+                                        if Instant::now() > until {
+                                            nap_until = None;
+                                            next_roam = Instant::now() + Duration::from_secs(6);
+                                        }
+                                    } else if idle {
+                                        match roam_goal {
                                             None => {
-                                                if Instant::now() > next_wander {
-                                                    let minx = 16;
-                                                    let maxx = (screen.0 - ww - 16).max(minx);
-                                                    let tx = (wp.x + 150 * wander_dir).clamp(minx, maxx);
-                                                    target_x = Some(tx);
+                                                if Instant::now() > next_roam {
+                                                    let s = seed_now();
+                                                    let maxx = (screen.0 - ww - 16).max(16);
+                                                    let midy_hi = (screen.1 - wh - 140).max(80);
+                                                    // weight the Dock, then the side walls, then a menu-bar nap
+                                                    roam_goal = Some(match s % 6 {
+                                                        0 | 1 | 2 => (rnd(s >> 3, 16, maxx), screen.1 - wh - 28),
+                                                        3 => (0, rnd(s >> 3, 60, midy_hi)),
+                                                        4 => (screen.0 - ww, rnd(s >> 3, 60, midy_hi)),
+                                                        _ => (rnd(s >> 3, 40, maxx), 2),
+                                                    });
                                                 }
                                             }
-                                            Some(tx) => {
-                                                let dx = tx - wp.x;
-                                                if dx.abs() <= 2 {
-                                                    target_x = None;
-                                                    wander_dir = -wander_dir;
-                                                    next_wander = Instant::now() + Duration::from_secs(12);
+                                            Some((gx, gy)) => {
+                                                let dx = gx - wp.x;
+                                                let dy = gy - wp.y;
+                                                if dx.abs() <= 3 && dy.abs() <= 3 {
+                                                    roam_goal = None;
+                                                    if gy < 40 {
+                                                        nap_until = Some(Instant::now() + Duration::from_secs(24));
+                                                    } else {
+                                                        next_roam = Instant::now() + Duration::from_secs(9);
+                                                    }
                                                 } else {
-                                                    let stepx = if dx > 0 { 2 } else { -2 };
-                                                    let _ = window.set_position(PhysicalPosition::new(wp.x + stepx, wp.y));
+                                                    let sx = dx.signum() * dx.abs().min(3);
+                                                    let sy = dy.signum() * dy.abs().min(3);
+                                                    let _ = window
+                                                        .set_position(PhysicalPosition::new(wp.x + sx, wp.y + sy));
                                                 }
                                             }
                                         }
                                     }
+
+                                    // tell the frontend how to pose while roaming
+                                    let near_top = wp.y < 60;
+                                    roam_pose = if nap_until.is_some() || (near_top && roam_goal.is_none()) {
+                                        "nap"
+                                    } else if wp.x < 60 {
+                                        "climb-l"
+                                    } else if wp.x > screen.0 - ww - 60 {
+                                        "climb-r"
+                                    } else {
+                                        ""
+                                    };
                                 }
                                 let payload = serde_json::json!({
                                     "cursorX": cp.x, "cursorY": cp.y,
                                     "winX": wp.x, "winY": wp.y, "scale": scale,
                                     "hovering": hovering, "app": app_cat, "appName": app_name,
                                     "cpu": cpu, "batt": batt, "charging": charging,
+                                    "roam": roam_pose,
                                 });
                                 let _ = h.emit("ctx", payload);
                             }

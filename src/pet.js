@@ -21,7 +21,7 @@
   // ---- persisted pet ---------------------------------------------------
   const DEFAULT = {
     name: "Bandit", born: Date.now(),
-    bodyColor: "#2a2d38", hairColor: "#7bbf6a", scale: 1, theme: "os",
+    bodyColor: "#2a2d38", hairColor: "#7bbf6a", scale: 1, theme: "os", chatter: true, coatAuto: true,
     hunger: 20, thirst: 20, hair: 12, happy: 82,
     lastTick: Date.now(),
     stats: { feeds: 0, waters: 0, pets: 0, lateNights: 0, lastLateNight: 0 },
@@ -38,8 +38,8 @@
     pet.thirst = Math.min(92, pet.thirst + awayH * 6);
     pet.happy = Math.max(15, pet.happy - awayH * 3);
     pet.lastTick = Date.now();
-    $("bodyc").value = pet.bodyColor; $("hairc").value = pet.hairColor;
-    applyTheme();
+    $("bodyc").value = coatColor(); $("hairc").value = pet.hairColor;
+    applyTheme(); updateChatter();
   }
   function applyTheme() {
     if (pet.theme && pet.theme !== "os") document.body.dataset.theme = pet.theme;
@@ -60,7 +60,7 @@
   const ctx = {
     look: { x: 0, y: 0 }, hovering: false,
     app: "other", appName: "", hour: new Date().getHours(),
-    cpu: 0, batt: 100, charging: true, task: "",
+    cpu: 0, batt: 100, charging: true, task: "", roam: "",
     sameAppSince: Date.now(), vel: { x: 0 },
   };
   let prevWin = null, prevWt = 0;
@@ -75,6 +75,7 @@
       if (typeof p.cpu === "number") ctx.cpu = p.cpu;
       if (typeof p.batt === "number") ctx.batt = p.batt;
       if (typeof p.charging === "boolean") ctx.charging = p.charging;
+      ctx.roam = p.roam || "";
       // drag velocity from the window moving
       const tn = nowp();
       if (prevWin) { const dt = Math.max(16, tn - prevWt); ctx.vel.x = ctx.vel.x * 0.5 + ((p.winX - prevWin) / dt) * 0.5; }
@@ -98,6 +99,8 @@
       if (e.key === "f") action("food");
       if (e.key === "1") { pet.hunger = 85; pet.thirst = 82; pet.happy = 30; }
       if (e.key === "y") idle.fire("yawn");
+      if (e.key === "o") toggleFocus();
+      if (e.key === "r") ctx.roam = ({ "": "climb-l", "climb-l": "climb-r", "climb-r": "nap", "nap": "" })[ctx.roam] ?? "";
     });
   }
   function setLook(px, py) {
@@ -116,6 +119,7 @@
     if (ctx.cpu > 0.85) return "frazzled";
     if (ctx.batt <= 25 && !ctx.charging) return "hangry";
     if (ctx.charging && ctx.batt < 95) return "charging";
+    if (ctx.roam === "nap") return "nap";
     if (isLate()) return "nocturnal";
     if (ctx.task === "working" || ctx.task === "thinking") return "watching";
     const bad = Math.max(pet.hunger, pet.thirst);
@@ -174,7 +178,7 @@
   let sN = 0.37;
   function seed() { sN = ((sN * 9301 + 49297) % 233280) / 233280; return sN; }
   let bubbleUntil = 0;
-  function say(text, ms = 3200) { if (!text) return; bubbleEl.textContent = text; bubbleEl.classList.remove("hidden"); bubbleUntil = nowp() + ms; }
+  function say(text, ms = 3200) { if (!text || pet.chatter === false) return; bubbleEl.textContent = text; bubbleEl.classList.remove("hidden"); bubbleUntil = nowp() + ms; }
   let appSwitches = [];
   function onAppChange() {
     const t = nowp();
@@ -233,11 +237,36 @@
     else if (kind === "water") { pet.thirst = 0; pet.happy = Math.min(100, pet.happy + 6); pet.stats.waters++; flash("great", 1400, "drink"); say(pick(L.watered)); }
     else if (kind === "pet") { pet.happy = Math.min(100, pet.happy + 12); pet.stats.pets++; flash("great", 1300, "pet"); say(pick(L.pet)); }
     else if (kind === "edit") { menuEl.classList.add("hidden"); editEl.classList.remove("hidden"); editMode = true; return; }
+    else if (kind === "focus") { toggleFocus(); return; }
     savePet();
   }
+
+  // ---- pomodoro / focus buddy ------------------------------------------
+  const focus = { on: false, phase: "work", endsAt: 0, work: 25 * 60000, brk: 5 * 60000 };
+  function toggleFocus() {
+    focus.on = !focus.on;
+    if (focus.on) { focus.phase = "work"; focus.endsAt = Date.now() + focus.work; say("focus on. 25 min — i've got you 🦝"); }
+    else say("focus off. nice work 👏");
+  }
+  setInterval(() => {
+    if (!focus.on) return;
+    if (Date.now() >= focus.endsAt) {
+      if (focus.phase === "work") { focus.phase = "break"; focus.endsAt = Date.now() + focus.brk; flash("great", 2200, "jump"); say("BREAK! 5 min — look away & stretch 🦝", 6000); }
+      else { focus.phase = "work"; focus.endsAt = Date.now() + focus.work; say("back to it. lock in 💪"); }
+    }
+  }, 1000);
+
   let editMode = false;
   menuEl.querySelectorAll(".mbtn").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); action(b.dataset.act); }));
-  $("bodyc").addEventListener("input", (e) => { pet.bodyColor = e.target.value; savePet(); });
+  // coat follows the theme (light coat in light mode, dark in dark) until you pick a custom color
+  const LIGHT_COAT = "#8b90a0", DARK_COAT = "#2a2d38";
+  function resolvedTheme() {
+    if (pet.theme === "light") return "light";
+    if (pet.theme === "dark") return "dark";
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  function coatColor() { return pet.coatAuto === false ? pet.bodyColor : (resolvedTheme() === "light" ? LIGHT_COAT : DARK_COAT); }
+  $("bodyc").addEventListener("input", (e) => { pet.coatAuto = false; pet.bodyColor = e.target.value; savePet(); });
   $("hairc").addEventListener("input", (e) => { pet.hairColor = e.target.value; savePet(); });
   $("sizeUp").addEventListener("click", () => { pet.scale = Math.min(1.5, pet.scale + 0.1); savePet(); });
   $("sizeDown").addEventListener("click", () => { pet.scale = Math.max(0.7, pet.scale - 0.1); savePet(); });
@@ -245,6 +274,8 @@
   document.querySelectorAll("#themeSeg button").forEach((b) =>
     b.addEventListener("click", (e) => { e.stopPropagation(); pet.theme = b.dataset.theme; applyTheme(); savePet(); })
   );
+  function updateChatter() { const btn = $("chatterBtn"); if (!btn) return; btn.textContent = pet.chatter === false ? "off" : "on"; btn.classList.toggle("on", pet.chatter !== false); }
+  $("chatterBtn").addEventListener("click", (e) => { e.stopPropagation(); pet.chatter = pet.chatter === false; updateChatter(); savePet(); if (pet.chatter === false) bubbleEl.classList.add("hidden"); });
   function syncUI() {
     menuEl.classList.toggle("hidden", !(ctx.hovering && !editMode));
     if (!ctx.hovering && editMode) { editEl.classList.add("hidden"); editMode = false; }
@@ -306,7 +337,7 @@
   function draw() {
     g.clearRect(0, 0, W, H);
     const t = nowp(), m = mood(), s = pet.scale;
-    const fur = pet.bodyColor;
+    const fur = coatColor();
 
     let bob = Math.sin(t / 560) * 2.4, lift = 0, squash = 0, tilt = 0, wide = 0;
     let openL = 1, openR = 1, style = "normal";
@@ -319,6 +350,7 @@
     else if (m === "hangry") { bob = Math.sin(t / 1100) * 1; lift = -3; openL = openR = 0.6; }
     else if (m === "dying") { bob = Math.sin(t / 1400) * 0.8; lift = -5; openL = openR = 0.45; }
     else if (m === "charging") { bob = Math.sin(t / 420) * 2.6; style = "happy"; }
+    else if (m === "nap") { bob = Math.sin(t / 1200) * 0.9; openL = openR = 0.1; }
     else if (m === "celebrate") { const p = Math.min(1, (t - (transient.until - 1500)) / 1500); lift = Math.abs(Math.sin(p * Math.PI * 2)) * 40 * (1 - p * 0.3); style = "happy"; }
     if (transient.kind === "eat" || transient.kind === "drink" || transient.kind === "pet") style = "happy";
 
@@ -334,6 +366,8 @@
     // drag lean + landing bounce
     const v = Math.max(-1, Math.min(1, ctx.vel.x * 0.7));
     tilt += v * 0.25;
+    if (ctx.roam === "climb-l") tilt += 0.4;
+    else if (ctx.roam === "climb-r") tilt -= 0.4;
     if (Math.abs(ctx.vel.x) > 1.2 && t - lastFling > 1500) { lastFling = t; say(pick(["wheee", "wa-hey!", "put me down 😅"]), 1400); }
 
     if (style === "normal" && !mouthOpen) { if (t > blinkAt) { const bt = t - blinkAt; if (bt < 130) openL = openR = 1 - Math.sin((bt / 130) * Math.PI); else blinkAt = t + 1900 + seed() * 3400; } }
@@ -428,6 +462,18 @@
     if ((m === "nocturnal") && seed() > 0.7) star(cx - 30 + seed() * 60, cy - 40 - seed() * 20);
     if (transient.kind === "pet" && t < transient.until) heart(cx, cy - 44);
     if (m === "sad" || m === "hangry") { g.save(); g.globalAlpha = 0.7; sweat(cx + 24, cy - 6); g.restore(); }
+    if (m === "nap") { const zt = (t / 2600) % 1; g.save(); g.globalAlpha = 0.85 * (1 - zt); g.fillStyle = "rgba(244,239,230,.9)"; g.font = `${10 + zt * 8}px system-ui, sans-serif`; g.textAlign = "center"; g.fillText("z", cx + 22 + zt * 10, cy - 28 - zt * 24); g.restore(); }
+
+    // pomodoro ring
+    if (focus.on) {
+      const total = focus.phase === "work" ? focus.work : focus.brk;
+      const frac = Math.max(0, Math.min(1, (focus.endsAt - Date.now()) / total));
+      g.save();
+      g.strokeStyle = focus.phase === "work" ? "rgba(230,162,74,.92)" : "rgba(120,200,140,.95)";
+      g.lineWidth = 3; g.lineCap = "round";
+      g.beginPath(); g.arc(cx, cy, 64 * s, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2); g.stroke();
+      g.restore();
+    }
 
     syncUI();
     requestAnimationFrame(draw);
