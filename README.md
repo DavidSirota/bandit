@@ -30,7 +30,7 @@ curl -fsSL https://raw.githubusercontent.com/DavidSirota/bandit/main/install.sh 
 
 <br/><br/>
 
-<img src="docs/img/bandit-happy.png" width="140" alt="happy" /> <img src="docs/img/bandit.png" width="140" alt="idle" /> <img src="docs/img/bandit-night.png" width="140" alt="nocturnal" />
+<img src="docs/img/demo.gif" width="220" alt="Bandit reacting" />
 
 </div>
 
